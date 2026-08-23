@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { SUBJECTS, type Lang } from "@ai-tutor/common";
 import { askTutor } from "../api.js";
 import { useAchievements } from "../useAchievements.js";
+import { useProfile } from "../useProfile.js";
 import { shareContent } from "../share.js";
 
 interface Msg {
@@ -12,15 +13,16 @@ interface Msg {
   demo?: boolean;
 }
 
-export default function Chat({ lang }: { lang: Lang }) {
+export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubject?: string }) {
   const { t } = useTranslation();
-  const [subject, setSubject] = useState<string | undefined>();
+  const [subject, setSubject] = useState<string | undefined>(initialSubject);
   const [grade, setGrade] = useState<number | undefined>();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
   const { ach, bump } = useAchievements();
+  const { profile } = useProfile();
   const endRef = useRef<HTMLDivElement>(null);
 
   async function share(text: string) {
@@ -114,7 +116,9 @@ export default function Chat({ lang }: { lang: Lang }) {
       {/* лента сообщений */}
       <div className="chat-scroll flex h-[52vh] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-900/40">
         {messages.length === 0 && (
-          <div className="m-auto max-w-md text-center text-sm text-slate-500 dark:text-slate-400">{t("chat.empty")}</div>
+          <div className="m-auto max-w-md text-center text-sm text-slate-500 dark:text-slate-400">
+            {profile.name ? t("chat.emptyNamed", { name: profile.name }) : t("chat.empty")}
+          </div>
         )}
         {messages.map((m, i) => (
           <div key={i} className={`flex animate-fade-up ${m.role === "user" ? "justify-end" : "justify-start"}`}>
