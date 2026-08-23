@@ -6,7 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 dotenv.config();
 
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, InlineKeyboard, type Context } from "grammy";
 import { SUBJECTS, LANGS, detectInjection, DEMO_INJECTION_BLOCK, DEMO_TUTOR, type Lang, type ChatMessage, type TutorReply } from "@ai-tutor/common";
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN?.trim();
@@ -61,12 +61,43 @@ const T = {
     en: "Hi! I'm *AI Tutor* — I help with school lessons 🎓\nStudy topics only. Choose a language:",
   },
   pickSubject: { uz: "Fanni tanlang (yoki savolni shundoq yozing):", ru: "Выбери предмет (или просто задай вопрос):", en: "Pick a subject (or just ask):" },
-  ready: { uz: "Tayyor! Savolingizni yozing 📚", ru: "Готово! Пиши свой вопрос 📚", en: "Ready! Type your question 📚" },
-  thinking: { uz: "O'ylayapman…", ru: "Думаю…", en: "Thinking…" },
+  ready: {
+    uz: (subj: string) => `Tayyor! *${subj}* bo'yicha savolingizni yozing 📚`,
+    ru: (subj: string) => `Готово! Пиши свой вопрос по предмету *${subj}* 📚`,
+    en: (subj: string) => `Ready! Type your question about *${subj}* 📚`,
+  },
+  thinking: { uz: "🤔 O'ylayapman…", ru: "🤔 Думаю…", en: "🤔 Thinking…" },
   openApp: { uz: "📱 Mini ilovani ochish", ru: "📱 Открыть Mini App", en: "📱 Open Mini App" },
+  streak: {
+    uz: (n: number) => (n >= 3 ? `\n\n🔥 ${n}-savol shu suhbatda — zo'r ketyapsan!` : ""),
+    ru: (n: number) => (n >= 3 ? `\n\n🔥 ${n}-й вопрос в этом чате — отличный темп!` : ""),
+    en: (n: number) => (n >= 3 ? `\n\n🔥 Question #${n} in this chat — great streak!` : ""),
+  },
 } as const;
 
 const bot = new Bot(TOKEN);
+
+/** AI отвечает GFM-разметкой (**bold**, ### заголовки) — Telegram legacy Markdown
+ *  умеет только *bold*; заголовки не поддерживает вовсе (показал бы решётки как есть). */
+function toTelegramMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+(.+)$/gm, "*$1*")
+    .replace(/\*\*(.+?)\*\*/g, "*$1*");
+}
+
+/** Безопасная отправка/редактирование с форматированием: если Telegram не смог распарсить
+ *  сущности (нестандартные символы от LLM), откатываемся на голый текст — ответ не теряется. */
+async function sendFormatted(ctx: Context, text: string, editMessageId?: number): Promise<void> {
+  const formatted = toTelegramMarkdown(text);
+  try {
+    if (editMessageId) await ctx.api.editMessageText(chatId(ctx), editMessageId, formatted, { parse_mode: "Markdown" });
+    else await ctx.reply(formatted, { parse_mode: "Markdown" });
+  } catch {
+    const plain = text.replace(/\*\*/g, "");
+    if (editMessageId) await ctx.api.editMessageText(chatId(ctx), editMessageId, plain).catch(() => ctx.reply(plain));
+    else await ctx.reply(plain);
+  }
+}
 
 function langKeyboard() {
   const kb = new InlineKeyboard();
@@ -112,8 +143,9 @@ bot.callbackQuery(/^subj:(.+)$/, async (ctx) => {
   const s = getSession(chatId(ctx));
   s.subject = ctx.match![1];
   await ctx.answerCallbackQuery();
+  const subjLabel = SUBJECTS.find((x) => x.id === s.subject)?.label[s.lang] ?? s.subject;
   const kb = WEB_APP_URL ? new InlineKeyboard().webApp(T.openApp[s.lang], WEB_APP_URL) : undefined;
-  await ctx.reply(T.ready[s.lang], { reply_markup: kb });
+  await ctx.reply(T.ready[s.lang](subjLabel), { parse_mode: "Markdown", reply_markup: kb });
 });
 
 bot.on("message:text", async (ctx) => {
@@ -125,7 +157,11 @@ bot.on("message:text", async (ctx) => {
 
   s.history.push({ role: "user", content: text });
   s.history = s.history.slice(-12);
-  await ctx.replyWithChatAction("typing");
+  const questionsAsked = s.history.filter((m) => m.role === "user").length;
+
+  // Мгновенная реакция: chat-action + плейсхолдер-сообщение, которое потом заменяем ответом —
+  // ощущается живее, чем голая «печатает…», которая у Telegram гаснет через ~5 сек.
+  const [, thinkingMsg] = await Promise.all([ctx.replyWithChatAction("typing"), ctx.reply(T.thinking[s.lang])]);
 
   try {
     const res = await fetch(`${SERVER_URL}/api/tutor/chat`, {
@@ -142,14 +178,15 @@ bot.on("message:text", async (ctx) => {
     if (!res.ok) throw new Error(`server ${res.status}`);
     const data = (await res.json()) as TutorReply;
     s.history.push({ role: "assistant", content: data.reply });
-    await ctx.reply(data.reply);
+    const withStreak = data.reply + (data.blocked ? "" : T.streak[s.lang](questionsAsked));
+    await sendFormatted(ctx, withStreak, thinkingMsg.message_id);
   } catch (err) {
     // Сервер недоступен → локальный фолбэк: защита (Layer 1) + демо прямо в боте, не падаем.
     console.error("[bot] server unreachable, local fallback:", err instanceof Error ? err.message : err);
     const g = detectInjection(text);
     const reply = g.injected ? DEMO_INJECTION_BLOCK[s.lang] : DEMO_TUTOR[s.lang];
     s.history.push({ role: "assistant", content: reply });
-    await ctx.reply(reply);
+    await sendFormatted(ctx, reply, thinkingMsg.message_id);
   }
 });
 
