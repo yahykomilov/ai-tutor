@@ -15,6 +15,7 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import * as SplashScreen from "expo-splash-screen";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, FONT, S } from "./src/theme";
 import { ensureSession, type SessionInfo } from "./api";
 import { ChatScreen, HomeScreen, OnboardingScreen, ProfileScreen, SubjectsScreen } from "./src/screens";
@@ -30,7 +31,17 @@ const TABS: { id: Tab; label: string; icon: typeof Home }[] = [
   { id: "profile", label: "Профиль", icon: User },
 ];
 
+/** SafeAreaProvider обязателен: useSafeAreaInsets работает только внутри него. */
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppInner />
+    </SafeAreaProvider>
+  );
+}
+
+function AppInner() {
+  const insets = useSafeAreaInsets();
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -59,19 +70,19 @@ export default function App() {
   if (!fontsLoaded) return null;
 
   return (
-    <View style={st.root}>
+    <View style={[st.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
       {!started ? (
         <OnboardingScreen onStart={() => setStarted(true)} />
       ) : (
         <View style={{ flex: 1 }}>
-          {tab === "home" && <HomeScreen onOpenSubject={() => setTab("subjects")} />}
+          {tab === "home" && <HomeScreen userId={session.userId} onOpenSubject={() => setTab("subjects")} />}
           {tab === "subjects" && <SubjectsScreen onAsk={openSubjectInChat} />}
           {tab === "chat" && <ChatScreen subjectId={chatSubject} userId={session.userId} />}
-          {tab === "profile" && <ProfileScreen />}
+          {tab === "profile" && <ProfileScreen userId={session.userId} />}
 
-          {/* Bottom Navigation — всегда видна, AI Чат подсвечен */}
-          <View style={st.nav}>
+          {/* Bottom Navigation — insets.bottom: не наезжаем на панель жестов Android */}
+          <View style={[st.nav, { paddingBottom: Math.max(insets.bottom, 8) + 10 }]}>
             {TABS.map(({ id, label, icon: Icon }) => {
               const active = tab === id;
               const center = id === "chat";

@@ -17,35 +17,35 @@ export const SUBJECTS_DATA: SubjectData[] = [
     title: { uz: "Algebra", ru: "Алгебра", en: "Algebra" },
     desc: { uz: "Tenglamalar, funksiyalar, grafiklar", ru: "Уравнения, функции, графики", en: "Equations, functions, graphs" },
     sample: { uz: "2x + 5 = 15 tenglamani qanday yechamiz?", ru: "Как решить уравнение 2x + 5 = 15?", en: "How do we solve 2x + 5 = 15?" },
-    progress: 72, lessons: 24,
+    progress: 0, lessons: 24,
   },
   {
     id: "physics", icon: "physics",
     title: { uz: "Fizika", ru: "Физика", en: "Physics" },
     desc: { uz: "Harakat, kuch, energiya", ru: "Движение, силы, энергия", en: "Motion, forces, energy" },
     sample: { uz: "Erkin tushish tezligi qanday o'sadi?", ru: "Почему тело падает быстрее?", en: "Why do objects fall faster?" },
-    progress: 45, lessons: 18,
+    progress: 0, lessons: 18,
   },
   {
     id: "history", icon: "history",
     title: { uz: "Tarix", ru: "История", en: "History" },
     desc: { uz: "Qadimgi davrdan hozirgacha", ru: "От древности до наших дней", en: "From ancient times to today" },
     sample: { uz: "Buyuk Ipak yo'li nima uchun muhim edi?", ru: "Почему Великий шёлковый путь был важен?", en: "Why did the Silk Road matter?" },
-    progress: 60, lessons: 15,
+    progress: 0, lessons: 15,
   },
   {
     id: "biology", icon: "biology",
     title: { uz: "Biologiya", ru: "Биология", en: "Biology" },
     desc: { uz: "Hujayra, organizmlar, ekologiya", ru: "Клетка, организмы, экология", en: "Cells, organisms, ecology" },
     sample: { uz: "Fotosintez qanday ishlaydi?", ru: "Как работает фотосинтез?", en: "How does photosynthesis work?" },
-    progress: 30, lessons: 20,
+    progress: 0, lessons: 20,
   },
   {
     id: "russian", icon: "language",
     title: { uz: "Rus tili", ru: "Русский язык", en: "Russian" },
     desc: { uz: "Grammatika, imlo, uslub", ru: "Грамматика, орфография, стиль", en: "Grammar, spelling, style" },
     sample: { uz: "-тся ва -ться qanday farqlanadi?", ru: "Когда пишется -тся, а когда -ться?", en: "When -тся vs -ться?" },
-    progress: 85, lessons: 30,
+    progress: 0, lessons: 30,
   },
 ];
 
@@ -58,13 +58,13 @@ export interface Achievement {
 }
 
 export const ACHIEVEMENTS: Achievement[] = [
-  { id: "first-week", icon: "flame", unlocked: true,
+  { id: "first-week", icon: "flame", unlocked: false,
     title: { uz: "Bir hafta", ru: "Неделя в деле", en: "First week" },
     desc: { uz: "7 kun ketma-ket o'qiding", ru: "7 дней учёбы подряд", en: "7 days learning streak" } },
-  { id: "algebra-hero", icon: "target", unlocked: true,
+  { id: "algebra-hero", icon: "target", unlocked: false,
     title: { uz: "Algebra qahramoni", ru: "Герой алгебры", en: "Algebra hero" },
     desc: { uz: "10 ta tenglama yechildi", ru: "10 уравнений разобрано", en: "10 equations solved together" } },
-  { id: "socratic", icon: "zap", unlocked: true,
+  { id: "socratic", icon: "zap", unlocked: false,
     title: { uz: "So'rovchi zehni", ru: "Пытливый ум", en: "Curious mind" },
     desc: { uz: "50 ta savol berildi", ru: "50 вопросов задано", en: "50 questions asked" } },
   { id: "champion", icon: "trophy", unlocked: false,
