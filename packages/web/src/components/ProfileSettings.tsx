@@ -13,14 +13,12 @@ export default function ProfileSettings({
   isGuest,
   onSave,
   onLogout,
-  onUpgrade,
   onClose,
 }: {
   user: SettingsIdentity;
   isGuest?: boolean;
   onSave: (patch: { name: string; grade?: number }) => void;
   onLogout?: () => void;
-  onUpgrade?: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -83,17 +81,7 @@ export default function ProfileSettings({
           {t("common.save")}
         </button>
 
-        {isGuest ? (
-          <button
-            onClick={() => {
-              onUpgrade?.();
-              onClose();
-            }}
-            className="mt-2 w-full rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-brand-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-brand-300 dark:hover:bg-white/5"
-          >
-            {t("register.upgradeCta")}
-          </button>
-        ) : (
+        {isGuest ? null : (
           <button
             onClick={onLogout}
             className="mt-2 w-full rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-white/5"
