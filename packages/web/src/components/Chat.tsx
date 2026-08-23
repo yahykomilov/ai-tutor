@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SUBJECTS, type Lang } from "@ai-tutor/common";
 import { askTutor } from "../api.js";
+import { useAchievements } from "../useAchievements.js";
+import { shareContent } from "../share.js";
 
 interface Msg {
   role: "user" | "assistant";
@@ -17,7 +19,18 @@ export default function Chat({ lang }: { lang: Lang }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState("");
+  const { ach, bump } = useAchievements();
   const endRef = useRef<HTMLDivElement>(null);
+
+  async function share(text: string) {
+    const r = await shareContent({ title: "AI Tutor", text });
+    if (r === "copied") {
+      setToast(t("share.copied"));
+      setTimeout(() => setToast(""), 1500);
+    }
+  }
+  const shareResult = () => share(t("ach.shareText", { solved: ach.solved }));
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,6 +51,7 @@ export default function Chat({ lang }: { lang: Lang }) {
         lang,
       });
       setMessages((m) => [...m, { role: "assistant", content: reply.reply, blocked: reply.blocked, demo: reply.demo }]);
+      if (!reply.blocked) bump();
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "⚠️ Error. Try again." }]);
     } finally {
@@ -82,6 +96,21 @@ export default function Chat({ lang }: { lang: Lang }) {
         </select>
       </div>
 
+      {/* виральность: достижения + поделиться результатом */}
+      {ach.solved > 0 && (
+        <div className="flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-1.5 text-xs dark:bg-slate-800/60">
+          <span className="font-semibold text-brand-700 dark:text-brand-300">
+            {t("ach.badge", { streak: ach.streak, solved: ach.solved })}
+          </span>
+          <button
+            onClick={shareResult}
+            className="ml-auto rounded-md bg-brand-600 px-2 py-1 font-semibold text-white transition hover:bg-brand-700"
+          >
+            📤 {t("ach.share")}
+          </button>
+        </div>
+      )}
+
       {/* лента сообщений */}
       <div className="chat-scroll flex h-[52vh] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-900/40">
         {messages.length === 0 && (
@@ -104,6 +133,14 @@ export default function Chat({ lang }: { lang: Lang }) {
               {m.content}
               {m.demo && (
                 <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t("chat.demo")}</div>
+              )}
+              {m.role === "assistant" && !m.blocked && (
+                <button
+                  onClick={() => share(m.content)}
+                  className="mt-1 block text-[11px] font-semibold text-brand-600 hover:underline dark:text-brand-300"
+                >
+                  📤 {t("share.this")}
+                </button>
               )}
             </div>
           </div>
@@ -140,6 +177,12 @@ export default function Chat({ lang }: { lang: Lang }) {
         </button>
       </div>
       <p className="text-center text-[11px] text-slate-400">{t("chat.disclaimer")}</p>
+
+      {toast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-slate-100 dark:text-slate-900">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
