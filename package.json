@@ -16,7 +16,7 @@
     "dev:web": "npm run dev -w @ai-tutor/web",
     "dev:bot": "npm run dev -w @ai-tutor/bot",
     "build": "npm run build -w @ai-tutor/web",
-    "typecheck": "tsc --noEmit -p packages/common/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/web/tsconfig.json && tsc --noEmit -p packages/bot/tsconfig.json && tsc --noEmit -p packages/mobile/tsconfig.json",
+    "typecheck": "tsc --noEmit -p packages/common/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/web/tsconfig.json && tsc --noEmit -p packages/bot/tsconfig.json && node --stack-size=8000 node_modules/typescript/lib/tsc.js --noEmit -p packages/mobile/tsconfig.json",
     "test": "npm run test -w @ai-tutor/server"
   },
   "devDependencies": {
