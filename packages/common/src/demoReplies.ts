@@ -1,7 +1,7 @@
 import type { Lang } from "./types.js";
 
 /**
- * Ответы для ДЕМО-режима (когда нет ANTHROPIC_API_KEY). Нужны, чтобы демонстрация
+ * Ответы для ДЕМО-режима (когда нет GROQ_API_KEY). Нужны, чтобы демонстрация
  * никогда не падала «в ноль». Это НЕ настоящий тьютор — просто честная заглушка,
  * которая ведёт себя по тем же правилам (учит, а не решает; отказ на не-учебное).
  */
@@ -19,7 +19,7 @@ export const DEMO_INJECTION_BLOCK: Record<Lang, string> = {
 };
 
 export const DEMO_TUTOR: Record<Lang, string> = {
-  uz: "[DEMO] Zo'r savol! Keling, qadamma-qadam o'ylaymiz. Avval: masalada nima berilgan va nima topish kerak? Yozib ko'r-chi, keyin birinchi qadamni birga qo'yamiz. (Haqiqiy javoblar uchun ANTHROPIC_API_KEY ni .env ga qo'shing.)",
-  ru: "[DEMO] Отличный вопрос! Давай думать по шагам. Сначала: что дано в задаче и что нужно найти? Напиши, а потом вместе сделаем первый шаг. (Для настоящих ответов добавь ANTHROPIC_API_KEY в .env.)",
-  en: "[DEMO] Great question! Let's think step by step. First: what is given and what do we need to find? Write it down, then we'll take the first step together. (Add ANTHROPIC_API_KEY to .env for real answers.)",
+  uz: "[DEMO] Zo'r savol! Keling, qadamma-qadam o'ylaymiz. Avval: masalada nima berilgan va nima topish kerak? Yozib ko'r-chi, keyin birinchi qadamni birga qo'yamiz. (Haqiqiy javoblar uchun GROQ_API_KEY ni .env ga qo'shing.)",
+  ru: "[DEMO] Отличный вопрос! Давай думать по шагам. Сначала: что дано в задаче и что нужно найти? Напиши, а потом вместе сделаем первый шаг. (Для настоящих ответов добавь GROQ_API_KEY в .env.)",
+  en: "[DEMO] Great question! Let's think step by step. First: what is given and what do we need to find? Write it down, then we'll take the first step together. (Add GROQ_API_KEY to .env for real answers.)",
 };
