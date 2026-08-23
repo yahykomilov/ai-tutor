@@ -1,0 +1,15 @@
+{
+  "name": "AI Tutor — Maktab uchun AI-yordamchi",
+  "short_name": "AI Tutor",
+  "description": "AI-репетитор для школы: объясняет и учит, не решает за тебя. Только учёба.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f3040",
+  "theme_color": "#a56f63",
+  "lang": "uz",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

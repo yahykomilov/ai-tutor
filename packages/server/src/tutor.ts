@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import {
   buildSystemPrompt,
   detectInjectionInHistory,
@@ -12,20 +11,16 @@ import {
 import type { TutorRequestInput } from "@ai-tutor/common";
 
 /**
- * Провайдеры AI по приоритету: Groq (быстрый, дешёвый) → Anthropic Claude → демо.
- * Оба получают ОДИН и тот же системный промпт + изоляцию ввода (Layer 2).
+ * Провайдер: ТОЛЬКО Groq (быстрый, дешёвый). Нет ключа — демо-режим.
+ * Все слои защиты обязательны независимо от провайдера:
+ * Layer 1 — детект инъекции по всей истории, Layer 2 — изоляция ввода,
+ * Layer 3 — валидация вывода на утечку промпта.
  */
 const GROQ_KEY = process.env.GROQ_API_KEY?.trim();
-const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || "llama-3.3-70b-versatile";
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY?.trim();
-const ANTHROPIC_MODEL = process.env.AI_MODEL?.trim() || "claude-sonnet-5";
+const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b";
 
-type Provider = "groq" | "anthropic" | "demo";
-const PROVIDER: Provider = GROQ_KEY ? "groq" : ANTHROPIC_KEY ? "anthropic" : "demo";
-
-const anthropic = PROVIDER === "anthropic"
-  ? new Anthropic({ apiKey: ANTHROPIC_KEY!, timeout: 30_000 })
-  : null;
+type Provider = "groq" | "demo";
+const PROVIDER: Provider = GROQ_KEY ? "groq" : "demo";
 
 /** Фразы из системного промпта — если утекли в ответ, значит защита пробита. */
 const LEAK_MARKERS = [
@@ -46,19 +41,12 @@ const BUSY: Record<Lang, string> = {
 /** Layer 3 — валидация вывода: утечка системного промпта не доходит до ученика. */
 function validateOutput(text: string, lang: Lang): { text: string; leaked: boolean } {
   const leaked = LEAK_MARKERS.some((m) => text.includes(m));
-  if (leaked) {
-    return { text: DEMO_INJECTION_BLOCK[lang], leaked: true };
-  }
+  if (leaked) return { text: DEMO_INJECTION_BLOCK[lang], leaked: true };
   return { text: text.trim(), leaked: false };
 }
 
-interface CallArgs {
-  system: string;
-  messages: { role: "user" | "assistant"; content: string }[];
-}
-
 /** Groq — OpenAI-совместимый API. */
-async function callGroq(args: CallArgs): Promise<string> {
+async function callGroq(system: string, messages: { role: "user" | "assistant"; content: string }[]): Promise<string> {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -69,7 +57,7 @@ async function callGroq(args: CallArgs): Promise<string> {
       model: GROQ_MODEL,
       max_tokens: 700,
       temperature: 0.6,
-      messages: [{ role: "system", content: args.system }, ...args.messages],
+      messages: [{ role: "system", content: system }, ...messages],
     }),
     signal: AbortSignal.timeout(30_000),
   });
@@ -78,20 +66,6 @@ async function callGroq(args: CallArgs): Promise<string> {
   const text = data.choices?.[0]?.message?.content?.trim();
   if (!text) throw new Error("groq empty response");
   return text;
-}
-
-async function callAnthropic(args: CallArgs): Promise<string> {
-  const resp = await anthropic!.messages.create({
-    model: ANTHROPIC_MODEL,
-    max_tokens: 1024,
-    system: args.system,
-    messages: args.messages,
-  });
-  return resp.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim();
 }
 
 export async function runTutor(req: TutorRequestInput): Promise<TutorReply> {
@@ -108,7 +82,7 @@ export async function runTutor(req: TutorRequestInput): Promise<TutorReply> {
     };
   }
 
-  // --- ДЕМО-режим (нет ключей): заглушка по тем же правилам ---
+  // --- ДЕМО-режим (нет ключа): заглушка по тем же правилам ---
   if (PROVIDER === "demo") {
     return { reply: DEMO_TUTOR[lang], demo: true };
   }
@@ -124,9 +98,7 @@ export async function runTutor(req: TutorRequestInput): Promise<TutorReply> {
   }));
 
   try {
-    const raw = await (PROVIDER === "groq"
-      ? callGroq({ system, messages })
-      : callAnthropic({ system, messages }));
+    const raw = await callGroq(system, messages);
 
     // --- Layer 3: проверка вывода ---
     const checked = validateOutput(raw || DEMO_TUTOR[lang], lang);
@@ -139,4 +111,9 @@ export async function runTutor(req: TutorRequestInput): Promise<TutorReply> {
     console.error(`[tutor] ${PROVIDER} error:`, err instanceof Error ? err.message : err);
     return { reply: BUSY[lang], demo: false };
   }
+}
+
+/** Совместимость с вебом Яхё: имя активного движка (groq | demo). */
+export function engineName(): string {
+  return PROVIDER;
 }

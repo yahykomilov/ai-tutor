@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 dotenv.config();
 
 import { Bot, InlineKeyboard } from "grammy";
-import { SUBJECTS, LANGS, type Lang, type ChatMessage, type TutorReply } from "@ai-tutor/common";
+import { SUBJECTS, LANGS, detectInjection, DEMO_INJECTION_BLOCK, DEMO_TUTOR, type Lang, type ChatMessage, type TutorReply } from "@ai-tutor/common";
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN?.trim();
 const SERVER_URL = process.env.SERVER_URL?.trim() || "http://localhost:3001";
@@ -144,8 +144,12 @@ bot.on("message:text", async (ctx) => {
     s.history.push({ role: "assistant", content: data.reply });
     await ctx.reply(data.reply);
   } catch (err) {
-    console.error("[bot] error:", err instanceof Error ? err.message : err);
-    await ctx.reply({ uz: "Xatolik yuz berdi, yana urinib ko'ring 🙏", ru: "Произошла ошибка, попробуй ещё раз 🙏", en: "Something went wrong, try again 🙏" }[s.lang]);
+    // Сервер недоступен → локальный фолбэк: защита (Layer 1) + демо прямо в боте, не падаем.
+    console.error("[bot] server unreachable, local fallback:", err instanceof Error ? err.message : err);
+    const g = detectInjection(text);
+    const reply = g.injected ? DEMO_INJECTION_BLOCK[s.lang] : DEMO_TUTOR[s.lang];
+    s.history.push({ role: "assistant", content: reply });
+    await ctx.reply(reply);
   }
 });
 

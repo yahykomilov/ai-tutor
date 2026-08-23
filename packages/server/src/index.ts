@@ -8,7 +8,7 @@ import {
   SUBJECTS,
   type TutorReply,
 } from "@ai-tutor/common";
-import { runTutor } from "./tutor.js";
+import { runTutor, engineName } from "./tutor.js";
 import { RateLimiter } from "./rateLimit.js";
 import { initDb, isDbEnabled, upsertUser, saveMessage, getHistory, verifyUserToken, getStats } from "./db.js";
 
@@ -36,8 +36,9 @@ app.get("/health", (_req, res) => {
     ok: true,
     ai: provider !== "demo",
     provider,
+    engine: engineName(),
     model: process.env.GROQ_API_KEY
-      ? (process.env.GROQ_MODEL || "llama-3.3-70b-versatile")
+      ? (process.env.GROQ_MODEL || "openai/gpt-oss-120b")
       : (process.env.AI_MODEL || "claude-sonnet-5"),
     db: isDbEnabled() ? "mysql" : "off",
   });
