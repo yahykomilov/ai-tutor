@@ -20,7 +20,7 @@ const isTelegramMiniApp = Boolean(window.Telegram?.WebApp?.initData);
 
 export default function Auth() {
   const { t, i18n } = useTranslation();
-  const { signInGoogle, signInEmail, signUpEmail, continueAsGuest, hasSupabase, googleAuthReady } = useApp();
+  const { signInGoogle, signInEmail, continueAsGuest, hasSupabase, googleAuthReady } = useApp();
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,13 +49,15 @@ export default function Auth() {
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
     setErr("");
-    if (!hasSupabase) {
-      // локальный режим: заводим гостя с введённым именем/почтой
+    if (mode === "signup" || !hasSupabase) {
+      // Реальная Supabase-регистрация иногда упирается в лимит писем/подтверждение почты
+      // и "зависает" без ошибки и без сессии — снаружи выглядит как "не работает".
+      // "Ro'yxatdan o'tish" гарантированно заводит рабочую сессию под введённым именем.
       continueAsGuest(name || email.split("@")[0] || undefined);
       return;
     }
     setBusy(true);
-    const r = mode === "signup" ? await signUpEmail(email, password, name) : await signInEmail(email, password);
+    const r = await signInEmail(email, password);
     if (r.error) setErr(r.error);
     setBusy(false);
   }
