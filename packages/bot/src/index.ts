@@ -77,9 +77,12 @@ const T = {
 
 const bot = new Bot(TOKEN);
 
-/** AI отвечает GFM-разметкой (**bold**) — конвертируем в Telegram legacy Markdown (*bold*). */
+/** AI отвечает GFM-разметкой (**bold**, ### заголовки) — Telegram legacy Markdown
+ *  умеет только *bold*; заголовки не поддерживает вовсе (показал бы решётки как есть). */
 function toTelegramMarkdown(text: string): string {
-  return text.replace(/\*\*(.+?)\*\*/g, "*$1*");
+  return text
+    .replace(/^#{1,6}\s+(.+)$/gm, "*$1*")
+    .replace(/\*\*(.+?)\*\*/g, "*$1*");
 }
 
 /** Безопасная отправка/редактирование с форматированием: если Telegram не смог распарсить
