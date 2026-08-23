@@ -107,6 +107,7 @@ bot.on("message:text", async (ctx) => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ messages: s.history, subject: s.subject, lang: s.lang }),
+      signal: AbortSignal.timeout(35_000), // не виснем в «печатает…» вечность
     });
     if (!res.ok) throw new Error(`server ${res.status}`);
     const data = (await res.json()) as TutorReply;

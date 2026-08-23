@@ -29,7 +29,7 @@ const INJECTION_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: /\b(developer|god|dan|jailbreak|unrestricted|uncensored)\s+mode\b|\bno\s+restrictions?\b|\bunrestricted\s+ai\b/i, reason: "jailbreak-mode" },
   { re: /^\s*(system|developer|assistant)\s*:/im, reason: "role-spoof" },
   { re: /\b(reveal|show|print|repeat|output|leak|display)\b[\s\S]{0,30}(system\s+prompt|your\s+(instruction|prompt|rule|system)|initial\s+prompt|these\s+instruction)/i, reason: "prompt-exfiltration" },
-  { re: /<\/?\s*(topic|system|instruction|context|user_input|student_message|prompt)\s*>/i, reason: "delimiter-injection" },
+  { re: /<\/?\s*(topic|system|instruction|context|user_input|student_message|assistant_history|prompt)\s*>/i, reason: "delimiter-injection" },
   { re: /\[\/?(inst|system|sys)\]/i, reason: "delimiter-injection" },
 
   // ---------- Русский ----------
@@ -37,6 +37,7 @@ const INJECTION_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: /(теперь\s+ты|ты\s+теперь|притвор|веди\s+себя\s+как|представь,?\s+что\s+ты|ты\s+больше\s+не)/i, reason: "identity-override" },
   { re: /режим\s+(разработчика|бога|без\s+ограничен)|без\s+(каких[\s-]*либо\s+)?ограничений/i, reason: "jailbreak-mode" },
   { re: /(покажи|выведи|повтори|раскрой|напечатай|скажи\s+мне)[\s\S]{0,30}(системн[а-яё]*\s*промпт|свои\s+(инструкц|правил)|начальн[а-яё]*\s*промпт|тво[йи]\s+промпт|промпт[а-яё\s]{0,15}целиком)/i, reason: "prompt-exfiltration" },
+  { re: /(system|системн\w*)[\s_-]*(override|овервайд|оверрайд|перехват)/i, reason: "jailbreak-mode" },
 
   // ---------- O'zbekcha ----------
   { re: new RegExp(`(unut|bekor\\s+qil|e${AP}tibor\\s+berma)[\\s\\S]{0,40}(ko${AP}rsatma|qoida|yo${AP}riqnoma|oldingi)`, "i"), reason: "override-instructions" },
@@ -45,12 +46,46 @@ const INJECTION_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: new RegExp(`tizim\\w*\\s*prompt|prompting|(prompt\\w*|ko${AP}rsatma\\w*)[\\s\\S]{0,20}(ko${AP}rsat|chiqar|oshkor)`, "i"), reason: "prompt-exfiltration" },
 ];
 
+/** Невидимые символы, которыми разводят буквы обхода детектора (zero-width, bidi, soft-hyphen). */
+const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF\u00AD]/g;
+
+/**
+ * Декодирует кандидатов в base64 (>=16 символов) и возвращает их содержимое
+ * вместе с оригиналом — чтобы закодированные инструкции не проходили мимо скана.
+ */
+function withDecodedBase64(text: string): string {
+  const candidates = text.match(/[A-Za-z0-9+/=]{16,}/g);
+  if (!candidates) return text;
+  const decoded: string[] = [];
+  for (const c of candidates) {
+    try {
+      // strict: только валидный base64, дающий осмысленный текст
+      const s = Buffer.from(c, "base64").toString("utf8");
+      if (/^[\p{L}\p{P}\p{N}\s]+$/u.test(s) && s.length >= 8) decoded.push(s);
+    } catch {
+      /* не base64 — пропускаем */
+    }
+  }
+  return decoded.length ? `${text}\n${decoded.join("\n")}` : text;
+}
+
 /** Проверяет один фрагмент текста на признаки инъекции. */
 export function detectInjection(text: string): GuardResult {
   const reasons = new Set<string>();
-  const normalized = text.normalize("NFKC");
+  const normalized = withDecodedBase64(
+    text.normalize("NFKC").replace(INVISIBLE, ""),
+  );
   for (const { re, reason } of INJECTION_PATTERNS) {
     if (re.test(normalized)) reasons.add(reason);
+  }
+  return { injected: reasons.size > 0, reasons: [...reasons] };
+}
+
+/** Сканирует ВСЮ историю сообщений — инъекция в любом месте блокирует запрос. */
+export function detectInjectionInHistory(messages: { role: string; content: string }[]): GuardResult {
+  const reasons = new Set<string>();
+  for (const m of messages) {
+    for (const r of detectInjection(m.content).reasons) reasons.add(r);
   }
   return { injected: reasons.size > 0, reasons: [...reasons] };
 }
@@ -60,6 +95,19 @@ export function detectInjection(text: string): GuardResult {
  * нейтрализует внутренние закрывающие теги — Layer 2 (структурная изоляция).
  */
 export function wrapUserInput(text: string): string {
-  const safe = text.replace(/<\s*\/?\s*student_message\s*>/gi, "");
+  const safe = text
+    .replace(/<\s*\/?\s*student_message\s*>/gi, "")
+    .replace(/<\s*\/?\s*assistant_history\s*>/gi, "");
   return `<student_message>\n${safe}\n</student_message>`;
+}
+
+/**
+ * Прошлые ходы «ассистента», пришедшие от клиента, тоже ненадёжны:
+ * их нельзя отдавать модели как собственные слова тьютора.
+ */
+export function wrapAssistantHistory(text: string): string {
+  const safe = text
+    .replace(/<\s*\/?\s*assistant_history\s*>/gi, "")
+    .replace(/<\s*\/?\s*student_message\s*>/gi, "");
+  return `<assistant_history>\n${safe}\n</assistant_history>`;
 }

@@ -1,8 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   buildSystemPrompt,
-  detectInjection,
+  detectInjectionInHistory,
   wrapUserInput,
+  wrapAssistantHistory,
   DEMO_TUTOR,
   DEMO_INJECTION_BLOCK,
   type TutorReply,
@@ -12,7 +13,8 @@ import type { TutorRequestInput } from "@ai-tutor/common";
 
 const API_KEY = process.env.ANTHROPIC_API_KEY?.trim();
 const MODEL = process.env.AI_MODEL?.trim() || "claude-sonnet-5";
-const client = API_KEY ? new Anthropic({ apiKey: API_KEY }) : null;
+// timeout: ученик не должен смотреть в «Думаю…» вечность, если AI завис
+const client = API_KEY ? new Anthropic({ apiKey: API_KEY, timeout: 30_000 }) : null;
 
 /** Фразы из системного промпта — если утекли в ответ, значит защита пробита. */
 const LEAK_MARKERS = [
@@ -43,10 +45,10 @@ function validateOutput(text: string, lang: Lang): { text: string; leaked: boole
 
 export async function runTutor(req: TutorRequestInput): Promise<TutorReply> {
   const lang = req.lang as Lang;
-  const last = req.messages[req.messages.length - 1];
 
-  // --- Layer 1: детект инъекции во входящем сообщении ученика ---
-  const guard = detectInjection(last.content);
+  // --- Layer 1: детект инъекции ПО ВСЕЙ истории (не только последнее сообщение):
+  // травить можно и через старые user-сообщения, и через подделанный assistant-ход.
+  const guard = detectInjectionInHistory(req.messages);
   if (guard.injected) {
     return {
       reply: DEMO_INJECTION_BLOCK[lang],
@@ -64,7 +66,10 @@ export async function runTutor(req: TutorRequestInput): Promise<TutorReply> {
   const system = buildSystemPrompt({ lang, subject: req.subject, grade: req.grade });
   const messages = req.messages.map((m) => ({
     role: m.role,
-    content: m.role === "user" ? wrapUserInput(m.content) : m.content,
+    content:
+      m.role === "user"
+        ? wrapUserInput(m.content)
+        : wrapAssistantHistory(m.content), // клиентские assistant-ходы — тоже ненадёжные
   }));
 
   try {

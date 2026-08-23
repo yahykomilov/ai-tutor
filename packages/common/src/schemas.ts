@@ -15,6 +15,17 @@ export const tutorRequestSchema = z.object({
   subject: z.enum(SUBJECT_IDS as [string, ...string[]]).optional(),
   grade: z.number().int().min(1).max(11).optional(),
   lang: z.enum(LANGS as [string, ...string[]]),
+  /** id пользователя из POST /api/session — если задан, история пишется в MySQL. */
+  userId: z.number().int().positive().optional(),
+});
+
+/** Тело POST /api/session — регистрация/обновление ученика. */
+export const sessionSchema = z.object({
+  tgId: z.number().int().positive().optional(),
+  deviceId: z.string().min(8).max(64).optional(),
+  name: z.string().max(120).optional(),
+  lang: z.enum(LANGS as [string, ...string[]]).default("uz"),
+  grade: z.number().int().min(1).max(11).optional(),
 });
 
 export type TutorRequestInput = z.infer<typeof tutorRequestSchema>;

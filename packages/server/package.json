@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "test": "tsx scripts/guard.test.ts"
+    "test": "tsx scripts/guard.test.ts",
+    "pentest": "tsx scripts/pentest-battery.ts"
   },
   "dependencies": {
     "@ai-tutor/common": "*",
@@ -15,7 +16,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
-    "helmet": "^8.0.0"
+    "helmet": "^8.0.0",
+    "mysql2": "^3.23.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
