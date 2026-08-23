@@ -11,7 +11,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { tutorRequestSchema, SUBJECTS, type TutorReply } from "@ai-tutor/common";
-import { runTutor } from "./tutor.js";
+import { runTutor, engineName } from "./tutor.js";
 import { RateLimiter } from "./rateLimit.js";
 
 const app = express();
@@ -29,7 +29,7 @@ app.use(express.json({ limit: "64kb" }));
 const limiter = new RateLimiter();
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, ai: Boolean(process.env.ANTHROPIC_API_KEY), model: process.env.AI_MODEL || "claude-sonnet-5" });
+  res.json({ ok: true, engine: engineName(), model: process.env.AI_MODEL || "claude-sonnet-5" });
 });
 
 app.get("/api/subjects", (_req, res) => {
