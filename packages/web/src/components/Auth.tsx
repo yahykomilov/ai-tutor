@@ -11,7 +11,7 @@ const LANGS: { id: Lang; label: string }[] = [
 
 export default function Auth() {
   const { t, i18n } = useTranslation();
-  const { signInGoogle, signInEmail, signUpEmail, continueAsGuest, hasSupabase } = useApp();
+  const { signInGoogle, signInEmail, signUpEmail, continueAsGuest, hasSupabase, googleAuthReady } = useApp();
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,10 +23,17 @@ export default function Auth() {
 
   async function google() {
     setErr("");
-    if (!hasSupabase) return notConfigured();
+    // hasSupabase=false → нет бэкенда вовсе; googleAuthReady=false → провайдер ещё не
+    // включён в Supabase Dashboard. Оба случая — без редиректа, дружелюбный текст.
+    if (!hasSupabase || !googleAuthReady) return notConfigured();
     setBusy(true);
     const r = await signInGoogle();
-    if (r.error) setErr(r.error);
+    if (r.error) {
+      // Сырую ошибку Supabase (например "provider is not enabled") ученику не показываем —
+      // тот же дружелюбный текст, что и при полном отсутствии Supabase.
+      console.error("[auth] google sign-in failed:", r.error);
+      notConfigured();
+    }
     setBusy(false);
   }
 
@@ -89,10 +96,33 @@ export default function Auth() {
 
           <form onSubmit={submitEmail} className="flex flex-col gap-3">
             {mode === "signup" && (
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("auth.name")} className="rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800" />
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t("auth.name")}
+                autoComplete="name"
+                className="rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-base outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800 sm:text-sm"
+              />
             )}
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("auth.email")} className="rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800" />
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("auth.password")} className="rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={t("auth.email")}
+              autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              className="rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-base outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800 sm:text-sm"
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={t("auth.password")}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              className="rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-base outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800 sm:text-sm"
+            />
             {err && <p className="text-xs text-rose-600 dark:text-rose-400">{err}</p>}
             <button type="submit" disabled={busy} className="rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-brand-900/20 transition hover:bg-brand-700 disabled:opacity-50">
               {mode === "signup" ? t("auth.signup") : t("auth.signin")}

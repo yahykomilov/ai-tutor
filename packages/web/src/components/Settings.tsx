@@ -36,14 +36,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           value={profile.name}
           onChange={(e) => updateProfile({ name: e.target.value })}
           placeholder={t("auth.name")}
-          className="mb-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800"
+          autoComplete="name"
+          className="mb-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800 sm:text-sm"
         />
 
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">{t("settings.grade")}</label>
         <select
           value={profile.grade ?? ""}
           onChange={(e) => updateProfile({ grade: e.target.value ? Number(e.target.value) : undefined })}
-          className="mb-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800"
+          className="mb-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base dark:border-slate-700 dark:bg-slate-800 sm:text-sm"
         >
           <option value="">—</option>
           {Array.from({ length: 11 }, (_, i) => i + 1).map((g) => (

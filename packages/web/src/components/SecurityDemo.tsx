@@ -86,7 +86,8 @@ export default function SecurityDemo({ lang }: { lang: Lang }) {
           onChange={(e) => setCustom(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && (run(custom), setCustom(""))}
           placeholder={t("sec.custom")}
-          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800"
+          enterKeyHint="send"
+          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800 sm:text-sm"
         />
         <button
           onClick={() => {

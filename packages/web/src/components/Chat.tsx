@@ -88,7 +88,7 @@ export default function Chat({ conversation, profile, onPersist }: Props) {
         <select
           value={grade ?? ""}
           onChange={(e) => setGrade(e.target.value ? Number(e.target.value) : undefined)}
-          className="ml-auto rounded-md border border-slate-200 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800"
+          className="ml-auto rounded-md border border-slate-200 bg-white px-2 py-1 text-base dark:border-slate-700 dark:bg-slate-800 sm:text-xs"
         >
           <option value="">{t("grade")}</option>
           {Array.from({ length: 11 }, (_, i) => i + 1).map((g) => (
@@ -148,7 +148,8 @@ export default function Chat({ conversation, profile, onPersist }: Props) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder={t("chat.placeholder")}
-          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800"
+          enterKeyHint="send"
+          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800 sm:text-sm"
         />
         <button onClick={send} disabled={loading || !input.trim()} className="rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-700 disabled:opacity-40">
           {t("chat.send")}

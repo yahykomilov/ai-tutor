@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import type { Lang } from "@ai-tutor/common";
-import { supabase, hasSupabase } from "./lib/supabase.js";
+import { supabase, hasSupabase, googleAuthReady } from "./lib/supabase.js";
 import { loadProfile, saveProfile, DEFAULT_PROFILE, type Profile, type Theme } from "./store.js";
 
 export interface AppUser {
@@ -19,6 +19,7 @@ interface AppContextValue {
   ready: boolean;
   profile: Profile;
   hasSupabase: boolean;
+  googleAuthReady: boolean;
   signInGoogle: () => Promise<AuthResult>;
   signInEmail: (email: string, password: string) => Promise<AuthResult>;
   signUpEmail: (email: string, password: string, name: string) => Promise<AuthResult>;
@@ -114,6 +115,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const signInGoogle = useCallback(async (): Promise<AuthResult> => {
     if (!supabase) return { error: "supabase-not-configured" };
+    // signInWithOAuth редиректит на Supabase ДО того, как ошибку можно поймать здесь —
+    // если провайдер не включён в дашборде, ученик увидит голую JSON-страницу.
+    // googleAuthReady не даёт стартовать редирект, пока это не подтверждено вручную.
+    if (!googleAuthReady) return { error: "google-provider-not-ready" };
     const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
     return error ? { error: error.message } : {};
   }, []);
@@ -158,6 +163,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ready,
     profile,
     hasSupabase,
+    googleAuthReady,
     signInGoogle,
     signInEmail,
     signUpEmail,
