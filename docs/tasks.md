@@ -26,7 +26,8 @@
 ## Осталось
 - [ ] Вставить `ANTHROPIC_API_KEY` в `.env` → живой прогон тьютора (снять «demo»).
 - [ ] `TELEGRAM_BOT_TOKEN` → поднять бота, задать Mini App URL в @BotFather.
-- [ ] Задеплоить: сервер (Render) + веб (Vercel), прописать прод-URL в env.
+- [x] Веб задеплоен: **https://ai-tutor-site-sable.vercel.app** (Vercel, статика + клиентский фолбэк — защита и демо работают без сервера).
+- [ ] Сервер (Render) + ANTHROPIC_API_KEY — для живого ИИ вместо демо/фолбэка.
 - [ ] Mobile app (Yahyo) — если успеваем к 13:30.
 - [ ] Презентация к финалу (см. docs/finals-playbook.md — правила дня).
 
