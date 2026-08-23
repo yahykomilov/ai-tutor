@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Lang } from "@ai-tutor/common";
 import { useProfile } from "./useProfile.js";
+import { useAuth } from "./useAuth.js";
+import { useTheme, type ThemeMode } from "./useTheme.js";
 import Landing from "./components/Landing.js";
 import Register from "./components/Register.js";
 import Sidebar from "./components/Sidebar.js";
@@ -11,6 +13,7 @@ import Profile from "./components/Profile.js";
 import Trust from "./components/Trust.js";
 import SecurityDemo from "./components/SecurityDemo.js";
 import AdminPanel from "./components/AdminPanel.js";
+import ProfileSettings from "./components/ProfileSettings.js";
 
 const LANG_BTNS: { id: Lang; label: string }[] = [
   { id: "uz", label: "UZ" },
@@ -18,24 +21,39 @@ const LANG_BTNS: { id: Lang; label: string }[] = [
   { id: "en", label: "EN" },
 ];
 
+const THEME_ICON: Record<ThemeMode, string> = { light: "☀️", dark: "🌙", system: "🖥️" };
+
 export type View = "landing" | "register" | "chat" | "security" | "subjects" | "profile" | "trust" | "admin";
 export const SHELL_VIEWS: View[] = ["chat", "security", "subjects", "profile"];
 
 export default function App() {
   const { t, i18n } = useTranslation();
   const { profile, setProfile } = useProfile();
+  const auth = useAuth();
+  const theme = useTheme();
   const [view, setView] = useState<View>(profile.registered ? "chat" : "landing");
   const [pendingSubject, setPendingSubject] = useState<string | undefined>();
-  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+  const [showSettings, setShowSettings] = useState(false);
+  const [googleError, setGoogleError] = useState<string | undefined>();
 
   const lang = i18n.language as Lang;
-  const toggleDark = () => {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-  };
 
-  const goApp = () => setView(profile.registered ? "chat" : "register");
+  // Google akkaunt tasdiqlansa (sahifa qayta yuklanganda ham) — to'g'ridan-to'g'ri ilovaga o'tkazamiz.
+  useEffect(() => {
+    if (auth.user && (view === "landing" || view === "register")) setView("chat");
+  }, [auth.user, view]);
+
+  const goApp = () => setView(auth.user || profile.registered ? "chat" : "register");
+
+  const handleGoogleCredential = async (idToken: string) => {
+    setGoogleError(undefined);
+    try {
+      await auth.loginWithGoogleIdToken(idToken);
+      setView("chat");
+    } catch {
+      setGoogleError(t("register.googleError"));
+    }
+  };
 
   const topControls = (
     <div className="flex items-center gap-1">
@@ -51,11 +69,12 @@ export default function App() {
         </button>
       ))}
       <button
-        onClick={toggleDark}
+        onClick={theme.cycle}
         className="ml-1 rounded-md px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
         aria-label="theme"
+        title={theme.mode}
       >
-        {dark ? "☀️" : "🌙"}
+        {THEME_ICON[theme.mode]}
       </button>
     </div>
   );
@@ -76,6 +95,8 @@ export default function App() {
           setProfile({ ...profile, registered: true });
           setView("chat");
         }}
+        onGoogleCredential={handleGoogleCredential}
+        error={googleError}
         topControls={topControls}
       />
     );
@@ -99,11 +120,16 @@ export default function App() {
         current={shellView}
         onNavigate={(v) => setView(v)}
         onQuickStart={() => setView("chat")}
+        user={auth.user}
+        onOpenSettings={() => setShowSettings(true)}
+        onGoRegister={() => setView("register")}
       />
       <div className="flex-1">
         <div className="flex justify-end gap-2 border-b border-slate-200/60 px-6 py-3 dark:border-ink-700">{topControls}</div>
         <main className="mx-auto max-w-5xl px-6 py-6">
-          {shellView === "chat" && <Chat lang={lang} initialSubject={pendingSubject} />}
+          {shellView === "chat" && (
+            <Chat lang={lang} initialSubject={pendingSubject} token={auth.token} defaultGrade={auth.user?.grade} />
+          )}
           {shellView === "subjects" && (
             <Subjects
               lang={lang}
@@ -135,6 +161,18 @@ export default function App() {
               <AdminPanel lang={lang} />
             </div>
           </div>
+        )}
+        {showSettings && auth.user && (
+          <ProfileSettings
+            user={auth.user}
+            onSave={(patch) => auth.updateProfile(patch)}
+            onLogout={() => {
+              auth.logout();
+              setShowSettings(false);
+              setView("landing");
+            }}
+            onClose={() => setShowSettings(false)}
+          />
         )}
       </div>
     </div>

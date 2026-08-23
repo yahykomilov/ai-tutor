@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { View } from "../App.js";
 import { SHELL_VIEWS } from "../App.js";
+import type { AuthUser } from "../useAuth.js";
 
 const ITEMS: { id: (typeof SHELL_VIEWS)[number]; icon: string; key: string }[] = [
   { id: "chat", icon: "🎓", key: "nav.chat" },
@@ -13,10 +14,16 @@ export default function Sidebar({
   current,
   onNavigate,
   onQuickStart,
+  user,
+  onOpenSettings,
+  onGoRegister,
 }: {
   current: View;
   onNavigate: (v: View) => void;
   onQuickStart: () => void;
+  user: AuthUser | null;
+  onOpenSettings: () => void;
+  onGoRegister: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -46,7 +53,30 @@ export default function Sidebar({
         ))}
       </nav>
 
-      <div className="mt-auto pt-6">
+      <div className="mt-auto flex flex-col gap-3 pt-6">
+        {user ? (
+          <button
+            onClick={onOpenSettings}
+            className="flex items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+          >
+            {user.picture ? (
+              <img src={user.picture} alt={user.name} className="h-8 w-8 rounded-full" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+                {user.name.slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-ink-900 dark:text-white">{user.name}</span>
+            <span className="text-slate-400">⚙️</span>
+          </button>
+        ) : (
+          <button
+            onClick={onGoRegister}
+            className="text-center text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300"
+          >
+            {t("landing.loginCta")}
+          </button>
+        )}
         <button
           onClick={onQuickStart}
           className="w-full rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-600"

@@ -13,6 +13,8 @@ export interface TutorRequest {
   subject?: string;
   grade?: number;
   lang: Lang;
+  /** Анонимный id клиента (localStorage, без PII) — только для агрегированной статистики (admin panel). */
+  clientId?: string;
 }
 
 export interface TutorReply {
@@ -24,4 +26,14 @@ export interface TutorReply {
     reason: string;
     layer: 1 | 2 | 3;
   };
+}
+
+/** Агрегированная статистика для admin panel — реальные данные, собранные сервером в рантайме. */
+export interface AdminStats {
+  activeStudents: number;
+  questionsToday: number;
+  blockedToday: number;
+  topSubject?: string;
+  subjectUsage: { id: string; count: number }[];
+  securityLog: { time: string; layer: 1 | 2 | 3; lang: Lang; text: string }[];
 }

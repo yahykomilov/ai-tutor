@@ -15,6 +15,7 @@ export const tutorRequestSchema = z.object({
   subject: z.enum(SUBJECT_IDS as [string, ...string[]]).optional(),
   grade: z.number().int().min(1).max(11).optional(),
   lang: z.enum(LANGS as [string, ...string[]]),
+  clientId: z.string().max(64).optional(),
 });
 
 export type TutorRequestInput = z.infer<typeof tutorRequestSchema>;

@@ -18,6 +18,8 @@ import type { TutorRequestInput } from "@ai-tutor/common";
 // окружения (.env) будут ещё не загружены.
 interface Engine {
   client: Anthropic | null;
+  groqKey: string | null;
+  groqModel: string;
   cliBin: string | null;
   model: string;
 }
@@ -25,13 +27,37 @@ let _engine: Engine | null = null;
 function getEngine(): Engine {
   if (_engine) return _engine;
   const key = process.env.ANTHROPIC_API_KEY?.trim();
+  const groqKey = process.env.GROQ_API_KEY?.trim();
   const bin = process.env.CLAUDE_BIN?.trim();
   _engine = {
     client: key ? new Anthropic({ apiKey: key }) : null,
+    groqKey: groqKey || null,
+    groqModel: process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b",
     cliBin: bin && existsSync(bin) ? bin : null,
     model: process.env.AI_MODEL?.trim() || "claude-sonnet-5",
   };
   return _engine;
+}
+
+/** Groq — OpenAI-совместимый Chat Completions API (нет офиц. SDK в зависимостях, поэтому fetch). */
+async function runViaGroq(
+  apiKey: string,
+  model: string,
+  system: string,
+  messages: { role: "user" | "assistant"; content: string }[],
+): Promise<string> {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1024,
+      messages: [{ role: "system", content: system }, ...messages],
+    }),
+  });
+  if (!res.ok) throw new Error(`Groq API ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return data.choices?.[0]?.message?.content?.trim() ?? "";
 }
 
 /** Фразы из системного промпта — если утекли в ответ, значит защита пробита. */
@@ -103,24 +129,24 @@ function runViaCli(bin: string, model: string, system: string, prompt: string): 
   });
 }
 
-/** Какой движок активен: api (ключ) / cli (локальный claude) / demo. */
-export function engineName(): "api" | "cli" | "demo" {
+/** Какой движок активен: api (Anthropic) / groq / cli (локальный claude) / demo. */
+export function engineName(): "api" | "groq" | "cli" | "demo" {
   const e = getEngine();
-  return e.client ? "api" : e.cliBin ? "cli" : "demo";
+  return e.client ? "api" : e.groqKey ? "groq" : e.cliBin ? "cli" : "demo";
 }
 
 export async function runTutor(req: TutorRequestInput): Promise<TutorReply> {
   const lang = req.lang as Lang;
   const last = req.messages[req.messages.length - 1];
 
-  const { client, cliBin, model } = getEngine();
+  const { client, groqKey, groqModel, cliBin, model } = getEngine();
 
   // --- Layer 1: детект инъекции ---
   const guard = detectInjection(last.content);
   if (guard.injected) {
     return {
       reply: DEMO_INJECTION_BLOCK[lang],
-      demo: !client && !cliBin,
+      demo: !client && !groqKey && !cliBin,
       blocked: { reason: guard.reasons.join(","), layer: 1 },
     };
   }
@@ -128,7 +154,7 @@ export async function runTutor(req: TutorRequestInput): Promise<TutorReply> {
   // --- Layer 2: системный промпт (изоляция ввода) ---
   const system = buildSystemPrompt({ lang, subject: req.subject, grade: req.grade });
 
-  // --- Живой ИИ: SDK (если есть ключ) → иначе локальный claude CLI → иначе демо ---
+  // --- Живой ИИ: Anthropic SDK → Groq → локальный claude CLI → демо ---
   try {
     if (client) {
       const messages = req.messages.map((m) => ({
@@ -141,6 +167,16 @@ export async function runTutor(req: TutorRequestInput): Promise<TutorReply> {
         .map((b) => b.text)
         .join("\n")
         .trim();
+      const checked = validateOutput(raw || DEMO_TUTOR[lang], lang);
+      return { reply: checked.text, demo: false, ...(checked.leaked ? { blocked: { reason: "output-leak", layer: 3 as const } } : {}) };
+    }
+
+    if (groqKey) {
+      const messages = req.messages.map((m) => ({
+        role: m.role,
+        content: m.role === "user" ? wrapUserInput(m.content) : m.content,
+      }));
+      const raw = await runViaGroq(groqKey, groqModel, system, messages);
       const checked = validateOutput(raw || DEMO_TUTOR[lang], lang);
       return { reply: checked.text, demo: false, ...(checked.leaked ? { blocked: { reason: "output-leak", layer: 3 as const } } : {}) };
     }

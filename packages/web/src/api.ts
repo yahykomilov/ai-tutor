@@ -2,10 +2,12 @@ import {
   detectInjection,
   DEMO_INJECTION_BLOCK,
   DEMO_TUTOR,
+  type AdminStats,
   type ChatMessage,
   type TutorReply,
   type Lang,
 } from "@ai-tutor/common";
+import { getClientId } from "./useClientId.js";
 
 const API = (import.meta.env.VITE_API_URL as string | undefined) || "";
 
@@ -40,12 +42,48 @@ export async function askTutor(params: AskParams): Promise<TutorReply> {
     const res = await fetch(`${API}/api/tutor/chat`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, clientId: getClientId() }),
     });
     if (res.status === 429) return { reply: "⏳ Too many requests — wait a moment.", demo: false };
     if (!res.ok) throw new Error(`API ${res.status}`);
     return (await res.json()) as TutorReply;
   } catch {
     return localFallback(params);
+  }
+}
+
+export async function fetchAdminStats(): Promise<AdminStats | null> {
+  try {
+    const res = await fetch(`${API}/api/admin/stats`);
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    return (await res.json()) as AdminStats;
+  } catch {
+    return null;
+  }
+}
+
+/** Сохранённые чаты (только для авторизованных Google-аккаунтом пользователей). */
+export async function loadChatThread(token: string, subject: string): Promise<ChatMessage[]> {
+  try {
+    const res = await fetch(`${API}/api/chats/${encodeURIComponent(subject)}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = (await res.json()) as { messages: ChatMessage[] };
+    return data.messages;
+  } catch {
+    return [];
+  }
+}
+
+export async function saveChatThread(token: string, subject: string, messages: ChatMessage[]): Promise<void> {
+  try {
+    await fetch(`${API}/api/chats/${encodeURIComponent(subject)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ messages }),
+    });
+  } catch {
+    /* тихо игнорируем — не критично для чата */
   }
 }

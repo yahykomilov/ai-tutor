@@ -1,16 +1,21 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { Profile } from "../useProfile.js";
+import GoogleSignInButton from "./GoogleSignInButton.js";
 
 export default function Register({
   profile,
   onSubmit,
   onSkip,
+  onGoogleCredential,
+  error,
   topControls,
 }: {
   profile: Profile;
   onSubmit: (p: Profile) => void;
   onSkip: () => void;
+  onGoogleCredential: (idToken: string) => void;
+  error?: string;
   topControls: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -31,7 +36,17 @@ export default function Register({
         </h1>
         <p className="mt-1.5 text-center text-sm text-slate-500 dark:text-slate-400">{t("register.subtitle")}</p>
 
-        <div className="mt-6 flex flex-col gap-3 text-left">
+        <div className="mt-6">
+          <GoogleSignInButton onCredential={onGoogleCredential} />
+          {error && <p className="mt-2 text-center text-xs font-semibold text-rose-600 dark:text-rose-400">{error}</p>}
+        </div>
+        <div className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+          {t("register.or")}
+          <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+        </div>
+
+        <div className="flex flex-col gap-3 text-left">
           <div>
             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t("register.nameLabel")}</label>
             <input
@@ -47,7 +62,7 @@ export default function Register({
             <select
               value={grade ?? ""}
               onChange={(e) => setGrade(e.target.value ? Number(e.target.value) : undefined)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             >
               <option value="">{t("grade")}</option>
               {Array.from({ length: 11 }, (_, i) => i + 1).map((g) => (

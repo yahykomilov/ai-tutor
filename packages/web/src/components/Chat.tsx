@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SUBJECTS, type Lang } from "@ai-tutor/common";
-import { askTutor } from "../api.js";
+import { askTutor, loadChatThread, saveChatThread } from "../api.js";
 import { useAchievements } from "../useAchievements.js";
 import { useProfile } from "../useProfile.js";
 import { shareContent } from "../share.js";
@@ -13,10 +13,20 @@ interface Msg {
   demo?: boolean;
 }
 
-export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubject?: string }) {
+export default function Chat({
+  lang,
+  initialSubject,
+  token,
+  defaultGrade,
+}: {
+  lang: Lang;
+  initialSubject?: string;
+  token?: string | null;
+  defaultGrade?: number;
+}) {
   const { t } = useTranslation();
   const [subject, setSubject] = useState<string | undefined>(initialSubject);
-  const [grade, setGrade] = useState<number | undefined>();
+  const [grade, setGrade] = useState<number | undefined>(defaultGrade);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,10 +34,30 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
   const { ach, bump } = useAchievements();
   const { profile } = useProfile();
   const endRef = useRef<HTMLDivElement>(null);
+  const subjectKey = subject ?? "general";
 
   useEffect(() => {
     if (initialSubject) setSubject(initialSubject);
   }, [initialSubject]);
+
+  useEffect(() => {
+    if (defaultGrade !== undefined) setGrade(defaultGrade);
+  }, [defaultGrade]);
+
+  // Saqlangan chat tarixi — faqat Google akkaunt bilan kirganlarda (token bor).
+  useEffect(() => {
+    if (!token) {
+      setMessages([]);
+      return;
+    }
+    let cancelled = false;
+    loadChatThread(token, subjectKey).then((loaded) => {
+      if (!cancelled) setMessages(loaded.map((m) => ({ role: m.role, content: m.content })));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, subjectKey]);
 
   async function share(text: string) {
     const r = await shareContent({ title: "AI Tutor", text });
@@ -56,8 +86,10 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
         grade,
         lang,
       });
-      setMessages((m) => [...m, { role: "assistant", content: reply.reply, blocked: reply.blocked, demo: reply.demo }]);
+      const withReply: Msg[] = [...next, { role: "assistant", content: reply.reply, blocked: reply.blocked, demo: reply.demo }];
+      setMessages(withReply);
       if (!reply.blocked) bump(subject);
+      if (token) saveChatThread(token, subjectKey, withReply.map((m) => ({ role: m.role, content: m.content })));
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "⚠️ Error. Try again." }]);
     } finally {
@@ -91,7 +123,7 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
         <select
           value={grade ?? ""}
           onChange={(e) => setGrade(e.target.value ? Number(e.target.value) : undefined)}
-          className="ml-auto rounded-md border border-slate-200 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800"
+          className="ml-auto rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-ink-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
         >
           <option value="">{t("grade")}</option>
           {Array.from({ length: 11 }, (_, i) => i + 1).map((g) => (
