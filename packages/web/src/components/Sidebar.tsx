@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { View } from "../App.js";
 import { SHELL_VIEWS } from "../App.js";
 import type { AuthUser } from "../useAuth.js";
+import type { Profile } from "../useProfile.js";
 
 const ITEMS: { id: (typeof SHELL_VIEWS)[number]; icon: string; key: string }[] = [
   { id: "chat", icon: "🎓", key: "nav.chat" },
@@ -15,6 +16,7 @@ export default function Sidebar({
   onNavigate,
   onQuickStart,
   user,
+  profile,
   onOpenSettings,
   onGoRegister,
 }: {
@@ -22,6 +24,7 @@ export default function Sidebar({
   onNavigate: (v: View) => void;
   onQuickStart: () => void;
   user: AuthUser | null;
+  profile: Profile;
   onOpenSettings: () => void;
   onGoRegister: () => void;
 }) {
@@ -68,6 +71,19 @@ export default function Sidebar({
             )}
             <span className="min-w-0 flex-1 truncate text-xs font-semibold text-ink-900 dark:text-white">{user.name}</span>
             <span className="text-slate-400">⚙️</span>
+          </button>
+        ) : profile.registered && profile.name ? (
+          <button
+            onClick={onGoRegister}
+            className="flex items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+            title={t("landing.loginCta")}
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              {profile.name.slice(0, 1).toUpperCase()}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-ink-900 dark:text-white">
+              {profile.name} <span className="font-normal text-slate-400">· {t("landing.guestLabel")}</span>
+            </span>
           </button>
         ) : (
           <button

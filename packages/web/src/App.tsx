@@ -121,6 +121,7 @@ export default function App() {
         onNavigate={(v) => setView(v)}
         onQuickStart={() => setView("chat")}
         user={auth.user}
+        profile={profile}
         onOpenSettings={() => setShowSettings(true)}
         onGoRegister={() => setView("register")}
       />
