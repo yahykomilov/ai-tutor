@@ -108,7 +108,10 @@ export default function Chat({ conversation, profile, onPersist }: Props) {
       <div className="chat-scroll flex flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200/70 bg-white/50 p-4 dark:border-ink-700 dark:bg-ink-900/40">
         {messages.length === 0 && <div className="m-auto max-w-md text-center text-sm text-slate-500 dark:text-slate-400">{t("chat.empty")}</div>}
         {messages.map((m, i) => (
-          <div key={i} className={`flex animate-fade-up ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={i} className={`flex items-end gap-2 animate-fade-up ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            {m.role === "assistant" && (
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-ink-800 text-sm shadow-sm">🎓</div>
+            )}
             <div className={`max-w-[82%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm leading-relaxed ${m.role === "user" ? "rounded-br-sm bg-brand-600 text-white" : "rounded-bl-sm bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100"}`}>
               {m.blocked && (
                 <div className="mb-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
@@ -124,7 +127,8 @@ export default function Chat({ conversation, profile, onPersist }: Props) {
           </div>
         ))}
         {loading && (
-          <div className="flex justify-start">
+          <div className="flex items-end justify-start gap-2">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-ink-800 text-sm shadow-sm">🎓</div>
             <div className="rounded-2xl rounded-bl-sm bg-slate-100 px-4 py-3 dark:bg-slate-800">
               <span className="inline-flex gap-1">
                 <span className="h-2 w-2 animate-blink rounded-full bg-slate-400" />
