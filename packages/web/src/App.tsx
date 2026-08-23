@@ -24,8 +24,8 @@ export default function App() {
   const lang = i18n.language as Lang;
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-brand-50 to-white text-slate-800 dark:from-slate-950 dark:to-slate-900 dark:text-slate-100">
-      <header className="sticky top-0 z-10 border-b border-slate-200/60 bg-white/70 backdrop-blur dark:border-slate-800 dark:bg-slate-950/70">
+    <div className="min-h-full bg-gradient-to-b from-brand-50 to-white text-slate-800 dark:from-ink-900 dark:to-ink-800 dark:text-slate-100">
+      <header className="sticky top-0 z-10 border-b border-slate-200/60 bg-white/70 backdrop-blur dark:border-ink-700 dark:bg-ink-900/70">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🎓</span>
