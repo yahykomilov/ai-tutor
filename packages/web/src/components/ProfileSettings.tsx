@@ -1,16 +1,26 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AuthUser } from "../useAuth.js";
+
+interface SettingsIdentity {
+  name: string;
+  email?: string;
+  picture?: string;
+  grade?: number;
+}
 
 export default function ProfileSettings({
   user,
+  isGuest,
   onSave,
   onLogout,
+  onUpgrade,
   onClose,
 }: {
-  user: AuthUser;
+  user: SettingsIdentity;
+  isGuest?: boolean;
   onSave: (patch: { name: string; grade?: number }) => void;
-  onLogout: () => void;
+  onLogout?: () => void;
+  onUpgrade?: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -33,7 +43,7 @@ export default function ProfileSettings({
           )}
           <div className="min-w-0">
             <div className="truncate text-sm font-bold text-ink-900 dark:text-white">{user.name}</div>
-            <div className="truncate text-xs text-slate-400">{user.email}</div>
+            <div className="truncate text-xs text-slate-400">{isGuest ? t("landing.guestLabel") : user.email}</div>
           </div>
         </div>
 
@@ -43,7 +53,7 @@ export default function ProfileSettings({
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-ink-900 outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
           </div>
           <div>
@@ -72,12 +82,25 @@ export default function ProfileSettings({
         >
           {t("common.save")}
         </button>
-        <button
-          onClick={onLogout}
-          className="mt-2 w-full rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-white/5"
-        >
-          {t("common.logout")}
-        </button>
+
+        {isGuest ? (
+          <button
+            onClick={() => {
+              onUpgrade?.();
+              onClose();
+            }}
+            className="mt-2 w-full rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-brand-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-brand-300 dark:hover:bg-white/5"
+          >
+            {t("register.upgradeCta")}
+          </button>
+        ) : (
+          <button
+            onClick={onLogout}
+            className="mt-2 w-full rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-white/5"
+          >
+            {t("common.logout")}
+          </button>
+        )}
       </div>
     </div>
   );

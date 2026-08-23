@@ -74,9 +74,8 @@ export default function Sidebar({
           </button>
         ) : profile.registered && profile.name ? (
           <button
-            onClick={onGoRegister}
+            onClick={onOpenSettings}
             className="flex items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
-            title={t("landing.loginCta")}
           >
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               {profile.name.slice(0, 1).toUpperCase()}

@@ -175,6 +175,15 @@ export default function App() {
             onClose={() => setShowSettings(false)}
           />
         )}
+        {showSettings && !auth.user && profile.registered && (
+          <ProfileSettings
+            user={{ name: profile.name, grade: profile.grade }}
+            isGuest
+            onSave={(patch) => setProfile({ ...profile, name: patch.name, grade: patch.grade })}
+            onUpgrade={() => setView("register")}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
       </div>
     </div>
   );
