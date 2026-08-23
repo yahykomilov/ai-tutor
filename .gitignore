@@ -1,0 +1,27 @@
+# deps
+node_modules/
+.pnp
+.pnp.js
+
+# env — НИКОГДА не коммитить реальные ключи (только .env.example)
+.env
+.env.*
+!.env.example
+
+# build
+dist/
+build/
+.vite/
+*.tsbuildinfo
+.vercel/
+
+# mobile
+packages/mobile/.expo/
+packages/mobile/android/
+packages/mobile/ios/
+
+# logs / os
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

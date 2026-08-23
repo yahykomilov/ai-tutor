@@ -1,0 +1,16 @@
+# Деплой сервера AI Tutor на Render (веб — на Vercel, см. packages/web/vercel.json).
+services:
+  - type: web
+    name: ai-tutor-server
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start -w @ai-tutor/server
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: claude-sonnet-5
+      - key: ALLOWED_ORIGINS
+        sync: false

@@ -1,0 +1,28 @@
+{
+  "name": "ai-tutor",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Maktab uchun AI-yordamchi — AI Tutor for schools (web + Telegram bot + Mini App)",
+  "workspaces": [
+    "packages/common",
+    "packages/server",
+    "packages/web",
+    "packages/bot"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm run dev -w @ai-tutor/server",
+    "dev:web": "npm run dev -w @ai-tutor/web",
+    "dev:bot": "npm run dev -w @ai-tutor/bot",
+    "build": "npm run build -w @ai-tutor/web",
+    "typecheck": "tsc --noEmit -p packages/common/tsconfig.json && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/web/tsconfig.json && tsc --noEmit -p packages/bot/tsconfig.json",
+    "test": "npm run test -w @ai-tutor/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
