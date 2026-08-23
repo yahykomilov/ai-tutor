@@ -84,15 +84,14 @@ export interface UpsertUser {
 export async function upsertUser(u: UpsertUser): Promise<number | null> {
   if (!dbEnabled || !pool) return null;
   try {
-    const key = u.tgId != null ? { tg: u.tgId } : u.deviceId ? { dev: u.deviceId } : null;
-    if (!key) return null;
+    const byTg = u.tgId != null;
+    const deviceId = byTg ? null : (u.deviceId ?? null);
+    if (!byTg && !deviceId) return null;
 
-    const [rows] = await pool.execute<mysql.RowDataPacket[]>(
-      "SELECT id FROM users WHERE " +
-        ("tg" in key ? "tg_id = ?" : "device_id = ?") +
-        " LIMIT 1",
-      ["tg" in key ? key.tg : key.dev],
-    );
+    const selectSql = byTg ? "SELECT id FROM users WHERE tg_id = ? LIMIT 1" : "SELECT id FROM users WHERE device_id = ? LIMIT 1";
+    const selectVal: string | number = byTg ? u.tgId! : deviceId!;
+    const [rows] = await pool.execute<mysql.RowDataPacket[]>(selectSql, [selectVal]);
+
     if (rows.length > 0) {
       const id = rows[0].id as number;
       await pool.execute(
@@ -101,10 +100,10 @@ export async function upsertUser(u: UpsertUser): Promise<number | null> {
       );
       return id;
     }
-    const [res] = await pool.execute<mysql.ResultSetHeader>(
-      "INSERT INTO users (tg_id, device_id, name, lang, grade) VALUES (?, ?, ?, ?, ?)",
-      ["tg" in key ? key.tg : null, "dev" in key ? key.dev : null, u.name ?? null, u.lang ?? "uz", u.grade ?? null],
-    );
+    const insertSql =
+      "INSERT INTO users (tg_id, device_id, name, lang, grade) VALUES (?, ?, ?, ?, ?)";
+    const insertVals = [byTg ? u.tgId : null, deviceId, u.name ?? null, u.lang ?? "uz", u.grade ?? null];
+    const [res] = (await pool.query(insertSql, insertVals)) as [mysql.ResultSetHeader, unknown];
     return res.insertId;
   } catch (err) {
     console.error("[db] upsertUser:", err instanceof Error ? err.message : err);
