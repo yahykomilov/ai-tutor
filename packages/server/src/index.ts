@@ -10,7 +10,7 @@ import {
 } from "@ai-tutor/common";
 import { runTutor, engineName } from "./tutor.js";
 import { RateLimiter } from "./rateLimit.js";
-import { initDb, isDbEnabled, upsertUser, saveMessage, getHistory, verifyUserToken, getStats } from "./db.js";
+import { initDb, isDbEnabled, upsertUser, saveMessage, getHistory, verifyUserToken, getStats, getUserStats } from "./db.js";
 
 const app = express();
 // За прокси (Render) req.ip без этого = IP прокси → один бакет на всех → массовые 429.
@@ -77,6 +77,21 @@ app.get("/api/history/:userId", async (req, res) => {
   }
   const messages = await getHistory(userId, 20);
   res.json({ userId, messages });
+});
+
+/** Статистика ученика (реальные данные из БД) — только со своим токеном (анти-IDOR). */
+app.get("/api/stats/:userId", async (req, res) => {
+  const userId = Number(req.params.userId);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ error: "invalid_user" });
+  }
+  const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  if (!(await verifyUserToken(userId, token))) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  const stats = await getUserStats(userId);
+  if (!stats) return res.json({ available: false });
+  res.json({ available: true, ...stats });
 });
 
 /** Security-дашборд: статистика чатов и атак. Только с ADMIN_TOKEN. */

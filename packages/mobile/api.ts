@@ -114,3 +114,50 @@ export async function fetchHistory(userId: number | null): Promise<ChatMessage[]
     return [];
   }
 }
+
+/* ---------------- Статистика (реальные данные из БД) ---------------- */
+
+export interface UserStats {
+  available: boolean;
+  name: string | null;
+  grade: number | null;
+  questions: number;
+  points: number;
+  streakDays: number;
+  lessonsDone: number;
+  weekly: number[]; // Пн..Вс
+}
+
+export const EMPTY_STATS: UserStats = {
+  available: false, name: null, grade: null,
+  questions: 0, points: 0, streakDays: 0, lessonsDone: 0,
+  weekly: [0, 0, 0, 0, 0, 0, 0],
+};
+
+/** Реальная статистика ученика с сервера; при офлайне — нули (никакой статики). */
+export async function fetchStats(userId: number | null): Promise<UserStats> {
+  if (userId == null) return EMPTY_STATS;
+  try {
+    const tok = await AsyncStorage.getItem(KEYS.token);
+    if (!tok) return EMPTY_STATS;
+    const res = await fetch(`${API_URL}/api/stats/${userId}`, {
+      headers: { authorization: `Bearer ${tok}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return EMPTY_STATS;
+    const data = (await res.json()) as Partial<UserStats>;
+    if (!data.available) return EMPTY_STATS;
+    return {
+      available: true,
+      name: data.name ?? null,
+      grade: data.grade ?? null,
+      questions: Number(data.questions ?? 0),
+      points: Number(data.points ?? 0),
+      streakDays: Number(data.streakDays ?? 0),
+      lessonsDone: Number(data.lessonsDone ?? 0),
+      weekly: Array.isArray(data.weekly) && data.weekly.length === 7 ? data.weekly.map(Number) : EMPTY_STATS.weekly,
+    };
+  } catch {
+    return EMPTY_STATS;
+  }
+}

@@ -10,8 +10,8 @@ import {
 } from "lucide-react-native";
 import { C, FONT, RADIUS, S, T } from "./theme";
 import { AchievementCard, AnimatedProgressBar, PageContainer, PremiumButton, StatBadge, SubjectCard } from "./components";
-import { ACHIEVEMENTS, SUBJECTS_DATA, USER_STATS, WEEKLY_POINTS, type SubjectData } from "./data";
-import { fetchHistory, sendChat, type ChatMessage } from "../api";
+import { SUBJECTS_DATA, type SubjectData } from "./data";
+import { EMPTY_STATS, fetchHistory, fetchStats, sendChat, type ChatMessage, type UserStats } from "../api";
 
 const ICONS = {
   math: <BookOpen size={22} color={C.primaryHover} />,
@@ -88,18 +88,23 @@ export function OnboardingScreen({ onStart }: { onStart: () => void }) {
 }
 
 /* ================= HOME ================= */
-export function HomeScreen({ onOpenSubject }: { onOpenSubject: () => void }) {
+export function HomeScreen({ userId, onOpenSubject }: { userId?: number | null; onOpenSubject: () => void }) {
+  const [stats, setStats] = useState<UserStats>(EMPTY_STATS);
+  useEffect(() => {
+    fetchStats(userId ?? null).then(setStats).catch(() => undefined);
+  }, [userId]);
+
   return (
     <PageContainer>
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
         <View style={st.homeHeader}>
           <View>
             <Text style={[T.small, { color: C.textSecondary }]}>{UI.greeting.ru} ☀️</Text>
-            <Text style={[T.h2, { fontFamily: FONT.bold, color: C.textPrimary }]}>{USER_STATS.name.ru}</Text>
+            <Text style={[T.h2, { fontFamily: FONT.bold, color: C.textPrimary }]}>{stats.name ?? "Ученик"}</Text>
           </View>
           <View style={{ flexDirection: "row", gap: S.sm }}>
-            <StatBadge icon="points" value={`${USER_STATS.points} · ${UI.points.ru}`} />
-            <StatBadge icon="streak" value={`${USER_STATS.streak} 🔥`} />
+            <StatBadge icon="points" value={`${stats.points} · ${UI.points.ru}`} />
+            <StatBadge icon="streak" value={`${stats.streakDays} 🔥`} />
           </View>
         </View>
 
@@ -155,7 +160,7 @@ export function ChatScreen({ subjectId, userId }: { subjectId?: string; userId?:
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [points, setPoints] = useState(120);
+  const [points, setPoints] = useState(0); // реальные баллы приходят с сервера
   const listRef = useRef<FlatList<Bubble>>(null);
 
   const subject = SUBJECTS_DATA.find((s) => s.id === subjectId);
@@ -192,7 +197,10 @@ export function ChatScreen({ subjectId, userId }: { subjectId?: string; userId?:
         ...p,
         { key: ++seq, role: "assistant", content: res.reply, blocked: Boolean(res.blocked) },
       ]);
-      if (!res.blocked && !res.demo) setPoints((v) => v + 5); // геймификация: +5 за ход
+      if (!res.blocked && !res.demo) {
+        // геймификация: сервер пересчитал баллы в БД (+5 за чистый вопрос)
+        fetchStats(userId ?? null).then((s) => setPoints(s.points)).catch(() => undefined);
+      }
     } catch {
       setBubbles((p) => [...p, { key: ++seq, role: "assistant", content: UI.error.ru, blocked: true }]);
     } finally {
@@ -268,32 +276,52 @@ export function ChatScreen({ subjectId, userId }: { subjectId?: string; userId?:
 }
 
 /* ================= PROFILE ================= */
-export function ProfileScreen() {
-  const maxPts = Math.max(...WEEKLY_POINTS);
+export function ProfileScreen({ userId }: { userId?: number | null }) {
+  const [stats, setStats] = useState<UserStats>(EMPTY_STATS);
+  useEffect(() => {
+    fetchStats(userId ?? null).then(setStats).catch(() => undefined);
+  }, [userId]);
+
+  const maxPts = Math.max(...stats.weekly, 1);
   const days = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+  // Достижения — только по реальным данным (по умолчанию все закрыты)
+  const achievements = [
+    { id: "first-q", icon: "zap" as const, unlocked: stats.questions >= 1,
+      title: "Первый шаг", desc: "Задай свой первый вопрос" },
+    { id: "five-q", icon: "target" as const, unlocked: stats.questions >= 5,
+      title: "Пытливый ум", desc: "5 вопросов задано" },
+    { id: "streak-3", icon: "flame" as const, unlocked: stats.streakDays >= 3,
+      title: "Три дня подряд", desc: "3 дня учёбы без пропусков" },
+    { id: "all-subj", icon: "trophy" as const, unlocked: stats.lessonsDone >= 9,
+      title: "Чемпион", desc: "Все 9 предметов затронуты" },
+  ];
+
   return (
     <PageContainer>
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: "center", gap: S.xs }}>
-          <View style={st.avatar}><Text style={[T.h1, { fontFamily: FONT.bold, color: C.primary }]}>О</Text></View>
-          <Text style={[T.h2, { fontFamily: FONT.bold, color: C.textPrimary }]}>{USER_STATS.name.ru}</Text>
-          <Text style={[T.caption, { color: C.textSecondary }]}>7 класс · уровень «Искатель»</Text>
+          <View style={st.avatar}><Text style={[T.h1, { fontFamily: FONT.bold, color: C.primary }]}>У</Text></View>
+          <Text style={[T.h2, { fontFamily: FONT.bold, color: C.textPrimary }]}>{stats.name ?? "Ученик"}</Text>
+          <Text style={[T.caption, { color: C.textSecondary }]}>
+            {stats.grade ? `${stats.grade} класс` : "Класс не указан"} · {stats.questions} вопросов
+          </Text>
         </View>
 
         <View style={st.statsRow}>
           <View style={st.statCard}>
             <Star size={18} color={C.primary} fill={C.primary} />
-            <Text style={[T.h3, { fontFamily: FONT.bold, color: C.textPrimary }]}>{USER_STATS.points}</Text>
+            <Text style={[T.h3, { fontFamily: FONT.bold, color: C.textPrimary }]}>{stats.points}</Text>
             <Text style={[T.caption, { color: C.textSecondary }]}>{UI.points.ru}</Text>
           </View>
           <View style={st.statCard}>
             <Flame size={18} color={C.warning} fill={C.warning} />
-            <Text style={[T.h3, { fontFamily: FONT.bold, color: C.textPrimary }]}>{USER_STATS.streak}</Text>
+            <Text style={[T.h3, { fontFamily: FONT.bold, color: C.textPrimary }]}>{stats.streakDays}</Text>
             <Text style={[T.caption, { color: C.textSecondary }]}>{UI.streak.ru}</Text>
           </View>
           <View style={st.statCard}>
             <BookOpen size={18} color={C.success} />
-            <Text style={[T.h3, { fontFamily: FONT.bold, color: C.textPrimary }]}>{USER_STATS.lessonsDone}</Text>
+            <Text style={[T.h3, { fontFamily: FONT.bold, color: C.textPrimary }]}>{stats.lessonsDone}</Text>
             <Text style={[T.caption, { color: C.textSecondary }]}>{UI.done.ru}</Text>
           </View>
         </View>
@@ -301,7 +329,7 @@ export function ProfileScreen() {
         <View style={[st.chartCard]}>
           <Text style={[T.h3, { fontFamily: FONT.semi, color: C.textPrimary, marginBottom: S.md }]}>{UI.weekly.ru}</Text>
           <View style={st.chartRow}>
-            {WEEKLY_POINTS.map((v, i) => (
+            {stats.weekly.map((v, i) => (
               <View key={i} style={st.chartCol}>
                 <AnimatedProgressBar value={(v / maxPts) * 100} color={i === 5 ? C.primary : C.primaryLight} />
                 <Text style={[T.caption, { color: C.textSecondary }]}>{days[i]}</Text>
@@ -312,12 +340,12 @@ export function ProfileScreen() {
 
         <Text style={[T.h3, { fontFamily: FONT.semi, color: C.textPrimary, marginVertical: S.sm }]}>{UI.achievements.ru}</Text>
         <View style={st.achieveGrid}>
-          {ACHIEVEMENTS.map((a) => (
+          {achievements.map((a) => (
             <AchievementCard
               key={a.id}
               unlocked={a.unlocked}
-              title={a.title.ru}
-              desc={a.desc.ru}
+              title={a.title}
+              desc={a.desc}
               icon={
                 a.icon === "trophy" ? <Trophy size={20} color={C.primaryHover} />
                 : a.icon === "flame" ? <Flame size={20} color={C.warning} />

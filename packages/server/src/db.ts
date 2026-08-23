@@ -65,7 +65,11 @@ export async function initDb(): Promise<boolean> {
   try {
     pool = mysql.createPool(CFG);
     const conn = await pool.getConnection();
-    await conn.query(SCHEMA);
+    // mysql2 не умеет multi-statement по умолчанию — гоним схему по стейтментам
+    for (const stmt of SCHEMA.split(";")) {
+      const s = stmt.trim();
+      if (s) await conn.query(s);
+    }
     await migrate(conn);
     conn.release();
     dbEnabled = true;
@@ -165,6 +169,73 @@ export async function getStats(): Promise<{
     };
   } catch (err) {
     console.error("[db] getStats:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+export interface UserStats {
+  name: string | null;
+  grade: number | null;
+  questions: number;
+  points: number;
+  streakDays: number;
+  lessonsDone: number;
+  weekly: number[]; // Пн..Вс, последние 7 дней
+}
+
+/** Реальная статистика ученика из БД (null без БД). Балл = 5 за чистый вопрос. */
+export async function getUserStats(userId: number): Promise<UserStats | null> {
+  if (!dbEnabled || !pool) return null;
+  try {
+    const [uRows, dRows] = await Promise.all([
+      pool.execute<mysql.RowDataPacket[]>(
+        `SELECT u.name, u.grade,
+                (SELECT COUNT(*) FROM messages WHERE user_id = ? AND role='user' AND blocked=FALSE) AS q,
+                (SELECT COUNT(DISTINCT subject) FROM messages WHERE user_id = ? AND role='user' AND subject IS NOT NULL) AS subj
+         FROM users u WHERE u.id = ? LIMIT 1`,
+        [userId, userId, userId],
+      ),
+      pool.query<mysql.RowDataPacket[]>(
+        `SELECT DISTINCT DATE(created_at) AS d FROM messages
+         WHERE user_id = ? AND role='user' AND created_at >= NOW() - INTERVAL 30 DAY`,
+        [userId],
+      ),
+    ]);
+    const u = uRows[0][0];
+    if (!u) return null;
+
+    // Стрик: подряд идущие дни с активностью, заканчивающиеся сегодня или вчера
+    const daySet = new Set((dRows[0] as mysql.RowDataPacket[]).map((r) => String(r.d)));
+    const today = new Date();
+    const iso = (dt: Date) => dt.toISOString().slice(0, 10);
+    let cursor = new Date(today);
+    if (!daySet.has(iso(cursor))) cursor.setDate(cursor.getDate() - 1);
+    let streak = 0;
+    while (daySet.has(iso(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    // Неделя Пн..Вс
+    const dow = (today.getDay() + 6) % 7; // 0=Пн
+    const weekly = Array.from({ length: 7 }, (_, i) => {
+      const dt = new Date(today);
+      dt.setDate(dt.getDate() - (dow - i));
+      return daySet.has(iso(dt)) ? 5 : 0;
+    });
+
+    const questions = Number(u.q ?? 0);
+    return {
+      name: (u.name as string | null) ?? null,
+      grade: (u.grade as number | null) ?? null,
+      questions,
+      points: questions * 5,
+      streakDays: streak,
+      lessonsDone: Number(u.subj ?? 0),
+      weekly,
+    };
+  } catch (err) {
+    console.error("[db] getUserStats:", err instanceof Error ? err.message : err);
     return null;
   }
 }
