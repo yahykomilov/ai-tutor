@@ -22,10 +22,33 @@ interface Session {
   lang: Lang;
   subject?: string;
   history: ChatMessage[];
+  /** id на сервере (MySQL) — если БД включена, история ученика персистится. */
+  serverUserId?: number | null;
+  registered?: boolean;
 }
 const sessions = new Map<number, Session>();
 const getSession = (id: number): Session =>
   sessions.get(id) ?? (sessions.set(id, { lang: "uz", history: [] }), sessions.get(id)!);
+
+/** Однократная регистрация ученика на сервере по tg_id. */
+async function registerIfNeeded(s: Session, tgId: number): Promise<void> {
+  if (s.registered) return;
+  s.registered = true; // не ретраим спамом; при ошибке останемся анонимными
+  try {
+    const res = await fetch(`${SERVER_URL}/api/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tgId, lang: s.lang }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { userId: number | null };
+      s.serverUserId = data.userId;
+    }
+  } catch {
+    /* сервер недоступен — бот продолжает работать в памяти */
+  }
+}
 
 /** id чата надёжно: chat.id, иначе from.id (для command/message всегда есть). */
 const chatId = (ctx: { chat?: { id: number }; from?: { id: number } }): number =>
@@ -98,6 +121,8 @@ bot.on("message:text", async (ctx) => {
   const text = ctx.message.text;
   if (text.startsWith("/")) return;
 
+  void registerIfNeeded(s, chatId(ctx));
+
   s.history.push({ role: "user", content: text });
   s.history = s.history.slice(-12);
   await ctx.replyWithChatAction("typing");
@@ -106,7 +131,12 @@ bot.on("message:text", async (ctx) => {
     const res = await fetch(`${SERVER_URL}/api/tutor/chat`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ messages: s.history, subject: s.subject, lang: s.lang }),
+      body: JSON.stringify({
+        messages: s.history,
+        subject: s.subject,
+        lang: s.lang,
+        ...(s.serverUserId != null ? { userId: s.serverUserId } : {}),
+      }),
       signal: AbortSignal.timeout(35_000), // не виснем в «печатает…» вечность
     });
     if (!res.ok) throw new Error(`server ${res.status}`);

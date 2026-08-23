@@ -1,4 +1,5 @@
-/** API-клиент к серверу AI Tutor (packages/server). Типы зеркалят @ai-tutor/common. */
+/** API-клиент к серверу AI Tutor + персистентная сессия (AsyncStorage). */
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "./config";
 
 export type Lang = "uz" | "ru" | "en";
@@ -25,10 +26,58 @@ export const SUBJECTS = [
   { id: "informatics", emoji: "💻", label: { uz: "Informatika", ru: "Информатика", en: "CS" } },
 ] as const;
 
+/* ---------------- Сессия ---------------- */
+
+export interface SessionInfo {
+  userId: number | null;
+  token: string | null;
+}
+
+const KEYS = { deviceId: "ai-tutor.deviceId", userId: "ai-tutor.userId", token: "ai-tutor.token" };
+
+/** Стабильная сессия: deviceId хранится в AsyncStorage — история переживает рестарты. */
+export async function ensureSession(lang: Lang): Promise<SessionInfo> {
+  let deviceId = await AsyncStorage.getItem(KEYS.deviceId);
+  if (!deviceId) {
+    deviceId = `expo-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    await AsyncStorage.setItem(KEYS.deviceId, deviceId);
+  }
+  try {
+    const res = await fetch(`${API_URL}/api/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ deviceId, lang }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as SessionInfo & { persisted: boolean };
+      if (data.userId != null && data.token) {
+        await AsyncStorage.setItem(KEYS.userId, String(data.userId));
+        await AsyncStorage.setItem(KEYS.token, data.token);
+        return { userId: data.userId, token: data.token };
+      }
+    }
+  } catch {
+    /* сервер недоступен — пробуем сохранённую сессию */
+  }
+  // офлайн-фолбэк: сохранённые userId+token
+  const uid = await AsyncStorage.getItem(KEYS.userId);
+  const tok = await AsyncStorage.getItem(KEYS.token);
+  return { userId: uid ? Number(uid) : null, token: tok ?? null };
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const uid = await AsyncStorage.getItem(KEYS.userId);
+  const tok = await AsyncStorage.getItem(KEYS.token);
+  if (uid && tok) headers.authorization = `Bearer ${tok}`;
+  return headers;
+}
+
 async function post<T>(path: string, body: unknown, timeoutMs = 35_000): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: await authHeaders(),
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -36,15 +85,32 @@ async function post<T>(path: string, body: unknown, timeoutMs = 35_000): Promise
   return (await res.json()) as T;
 }
 
-export function createSession(deviceId: string, lang: Lang) {
-  return post<{ userId: number | null; persisted: boolean }>("/api/session", { deviceId, lang }, 8000);
-}
+/* ---------------- Запросы ---------------- */
 
 export function sendChat(opts: {
   messages: ChatMessage[];
   lang: Lang;
   subject?: string;
+  grade?: number;
   userId?: number | null;
 }) {
   return post<TutorReply>("/api/tutor/chat", opts);
+}
+
+/** История с сервера (требует token; [] при ошибке/анониме). */
+export async function fetchHistory(userId: number | null): Promise<ChatMessage[]> {
+  if (userId == null) return [];
+  try {
+    const tok = await AsyncStorage.getItem(KEYS.token);
+    if (!tok) return [];
+    const res = await fetch(`${API_URL}/api/history/${userId}`, {
+      headers: { authorization: `Bearer ${tok}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { messages: ChatMessage[] };
+    return data.messages ?? [];
+  } catch {
+    return [];
+  }
 }
