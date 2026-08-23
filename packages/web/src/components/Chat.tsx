@@ -25,6 +25,10 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
   const { profile } = useProfile();
   const endRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (initialSubject) setSubject(initialSubject);
+  }, [initialSubject]);
+
   async function share(text: string) {
     const r = await shareContent({ title: "AI Tutor", text });
     if (r === "copied") {
@@ -53,7 +57,7 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
         lang,
       });
       setMessages((m) => [...m, { role: "assistant", content: reply.reply, blocked: reply.blocked, demo: reply.demo }]);
-      if (!reply.blocked) bump();
+      if (!reply.blocked) bump(subject);
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "⚠️ Error. Try again." }]);
     } finally {
@@ -68,7 +72,7 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
         <button
           onClick={() => setSubject(undefined)}
           className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-            !subject ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+            !subject ? "bg-ink-900 text-white dark:bg-brand-600" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
           }`}
         >
           {t("subject.any")}
@@ -78,7 +82,7 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
             key={s.id}
             onClick={() => setSubject(s.id)}
             className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-              subject === s.id ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              subject === s.id ? "bg-ink-900 text-white dark:bg-brand-600" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
             }`}
           >
             {s.emoji} {s.label[lang]}
@@ -106,7 +110,7 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
           </span>
           <button
             onClick={shareResult}
-            className="ml-auto rounded-md bg-brand-600 px-2 py-1 font-semibold text-white transition hover:bg-brand-700"
+            className="ml-auto rounded-md bg-brand-500 px-2 py-1 font-semibold text-white transition hover:bg-brand-600"
           >
             📤 {t("ach.share")}
           </button>
@@ -114,7 +118,7 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
       )}
 
       {/* лента сообщений */}
-      <div className="chat-scroll flex h-[52vh] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+      <div className="chat-scroll flex h-[58vh] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-ink-900/40">
         {messages.length === 0 && (
           <div className="m-auto max-w-md text-center text-sm text-slate-500 dark:text-slate-400">
             {profile.name ? t("chat.emptyNamed", { name: profile.name }) : t("chat.empty")}
@@ -125,8 +129,8 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
             <div
               className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm leading-relaxed ${
                 m.role === "user"
-                  ? "rounded-br-sm bg-brand-600 text-white"
-                  : "rounded-bl-sm bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100"
+                  ? "rounded-br-sm bg-brand-500 text-white"
+                  : "rounded-bl-sm bg-brand-50 text-ink-900 dark:bg-slate-800 dark:text-slate-100"
               }`}
             >
               {m.blocked && (
@@ -151,7 +155,7 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-sm bg-slate-100 px-4 py-3 dark:bg-slate-800">
+            <div className="rounded-2xl rounded-bl-sm bg-brand-50 px-4 py-3 dark:bg-slate-800">
               <span className="inline-flex gap-1">
                 <span className="h-2 w-2 animate-blink rounded-full bg-slate-400" />
                 <span className="h-2 w-2 animate-blink rounded-full bg-slate-400" style={{ animationDelay: "0.2s" }} />
@@ -175,7 +179,7 @@ export default function Chat({ lang, initialSubject }: { lang: Lang; initialSubj
         <button
           onClick={send}
           disabled={loading || !input.trim()}
-          className="rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-40"
+          className="rounded-xl bg-ink-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-ink-800 disabled:opacity-40 dark:bg-brand-600 dark:hover:bg-brand-700"
         >
           {t("chat.send")}
         </button>

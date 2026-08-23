@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Lang } from "@ai-tutor/common";
-import Onboarding from "./components/Onboarding.js";
+import { useProfile } from "./useProfile.js";
+import Landing from "./components/Landing.js";
+import Register from "./components/Register.js";
+import Sidebar from "./components/Sidebar.js";
 import Chat from "./components/Chat.js";
 import Subjects from "./components/Subjects.js";
 import Profile from "./components/Profile.js";
@@ -15,100 +18,125 @@ const LANG_BTNS: { id: Lang; label: string }[] = [
   { id: "en", label: "EN" },
 ];
 
-type Tab = "kirish" | "chat" | "subjects" | "profile" | "trust" | "security" | "admin";
-
-const TABS: { id: Tab; icon: string; key: string }[] = [
-  { id: "kirish", icon: "🏠", key: "nav.kirish" },
-  { id: "chat", icon: "💬", key: "nav.chat" },
-  { id: "subjects", icon: "📚", key: "nav.subjects" },
-  { id: "profile", icon: "🏆", key: "nav.profile" },
-  { id: "trust", icon: "🎓", key: "nav.trust" },
-  { id: "security", icon: "🛡", key: "nav.security" },
-  { id: "admin", icon: "📊", key: "nav.admin" },
-];
+export type View = "landing" | "register" | "chat" | "security" | "subjects" | "profile" | "trust" | "admin";
+export const SHELL_VIEWS: View[] = ["chat", "security", "subjects", "profile"];
 
 export default function App() {
   const { t, i18n } = useTranslation();
-  const [tab, setTab] = useState<Tab>("kirish");
+  const { profile, setProfile } = useProfile();
+  const [view, setView] = useState<View>(profile.registered ? "chat" : "landing");
   const [pendingSubject, setPendingSubject] = useState<string | undefined>();
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
 
+  const lang = i18n.language as Lang;
   const toggleDark = () => {
     const next = !dark;
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
   };
 
-  const lang = i18n.language as Lang;
+  const goApp = () => setView(profile.registered ? "chat" : "register");
+
+  const topControls = (
+    <div className="flex items-center gap-1">
+      {LANG_BTNS.map((l) => (
+        <button
+          key={l.id}
+          onClick={() => i18n.changeLanguage(l.id)}
+          className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
+            lang === l.id ? "bg-ink-900 text-white dark:bg-brand-500" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+          }`}
+        >
+          {l.label}
+        </button>
+      ))}
+      <button
+        onClick={toggleDark}
+        className="ml-1 rounded-md px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
+        aria-label="theme"
+      >
+        {dark ? "☀️" : "🌙"}
+      </button>
+    </div>
+  );
+
+  if (view === "landing") {
+    return <Landing onStart={goApp} topControls={topControls} />;
+  }
+
+  if (view === "register") {
+    return (
+      <Register
+        profile={profile}
+        onSubmit={(p) => {
+          setProfile({ ...p, registered: true });
+          setView("chat");
+        }}
+        onSkip={() => {
+          setProfile({ ...profile, registered: true });
+          setView("chat");
+        }}
+        topControls={topControls}
+      />
+    );
+  }
+
+  if (view === "trust") {
+    return (
+      <div className="min-h-full bg-surface text-ink-900 dark:bg-ink-950 dark:text-slate-100">
+        <main className="mx-auto max-w-4xl px-6 py-10">
+          <Trust onBack={() => setView("security")} />
+        </main>
+      </div>
+    );
+  }
+
+  const shellView = SHELL_VIEWS.includes(view) ? view : "chat";
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-brand-50 to-white text-slate-800 dark:from-ink-900 dark:to-ink-800 dark:text-slate-100">
-      <header className="sticky top-0 z-10 border-b border-slate-200/60 bg-white/70 backdrop-blur dark:border-ink-700 dark:bg-ink-900/70">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="AI Tutor" className="h-9 w-9 rounded-lg" />
-            <div>
-              <div className="text-lg font-extrabold leading-none">{t("appName")}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">{t("tagline")}</div>
+    <div className="flex min-h-full bg-surface text-ink-900 dark:bg-ink-950 dark:text-slate-100">
+      <Sidebar
+        current={shellView}
+        onNavigate={(v) => setView(v)}
+        onQuickStart={() => setView("chat")}
+      />
+      <div className="flex-1">
+        <div className="flex justify-end gap-2 border-b border-slate-200/60 px-6 py-3 dark:border-ink-700">{topControls}</div>
+        <main className="mx-auto max-w-5xl px-6 py-6">
+          {shellView === "chat" && <Chat lang={lang} initialSubject={pendingSubject} />}
+          {shellView === "subjects" && (
+            <Subjects
+              lang={lang}
+              onPick={(id) => {
+                setPendingSubject(id);
+                setView("chat");
+              }}
+            />
+          )}
+          {shellView === "profile" && <Profile lang={lang} />}
+          {shellView === "security" && <SecurityDemo lang={lang} onSeeTrust={() => setView("trust")} />}
+        </main>
+        <button
+          onClick={() => setView("admin")}
+          className="fixed bottom-3 right-3 rounded-full bg-ink-900/80 px-3 py-1.5 text-[11px] font-semibold text-white/70 hover:text-white dark:bg-white/10"
+          title="Admin"
+        >
+          📊
+        </button>
+        {view === "admin" && (
+          <div className="fixed inset-0 z-20 overflow-y-auto bg-surface p-6 dark:bg-ink-950">
+            <div className="mx-auto max-w-5xl">
+              <button
+                onClick={() => setView("chat")}
+                className="mb-4 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+              >
+                ← {t("common.back")}
+              </button>
+              <AdminPanel lang={lang} />
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            {LANG_BTNS.map((l) => (
-              <button
-                key={l.id}
-                onClick={() => i18n.changeLanguage(l.id)}
-                className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
-                  lang === l.id
-                    ? "bg-brand-600 text-white"
-                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-              >
-                {l.label}
-              </button>
-            ))}
-            <button
-              onClick={toggleDark}
-              className="ml-1 rounded-md px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
-              aria-label="theme"
-            >
-              {dark ? "☀️" : "🌙"}
-            </button>
-          </div>
-        </div>
-        <div className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4">
-          {TABS.map((tb) => (
-            <button
-              key={tb.id}
-              onClick={() => setTab(tb.id)}
-              className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition ${
-                tab === tb.id
-                  ? "border-brand-600 text-brand-700 dark:text-brand-300"
-                  : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-              }`}
-            >
-              {tb.icon} {t(tb.key)}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl px-4 py-4">
-        {tab === "kirish" && <Onboarding onStart={() => setTab("chat")} />}
-        {tab === "chat" && <Chat lang={lang} initialSubject={pendingSubject} />}
-        {tab === "subjects" && (
-          <Subjects
-            lang={lang}
-            onPick={(id) => {
-              setPendingSubject(id);
-              setTab("chat");
-            }}
-          />
         )}
-        {tab === "profile" && <Profile />}
-        {tab === "trust" && <Trust onSeeSecurity={() => setTab("security")} />}
-        {tab === "security" && <SecurityDemo lang={lang} />}
-        {tab === "admin" && <AdminPanel lang={lang} />}
-      </main>
+      </div>
     </div>
   );
 }
