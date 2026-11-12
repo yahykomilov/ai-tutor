@@ -8,6 +8,9 @@ node_modules/
 .env.*
 !.env.example
 
+# foydalanuvchi ma'lumotlari (email/ism, saqlangan chat) — repoga tushmasin
+packages/server/data/
+
 # build
 dist/
 build/

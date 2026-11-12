@@ -2,6 +2,7 @@ import {
   detectInjection,
   DEMO_INJECTION_BLOCK,
   DEMO_TUTOR,
+  type AdminStats,
   type ChatMessage,
   type TutorReply,
   type Lang,
@@ -93,5 +94,43 @@ export async function askTutor(params: AskParams): Promise<TutorReply> {
     return (await res.json()) as TutorReply;
   } catch {
     return localFallback(params);
+  }
+}
+
+// ---- из ветки feat/atxamov99: админ-статистика и сохранённые чаты.
+// Эндпоинтов /api/admin/stats и /api/chats/* в бэкенде master нет — функции тихо возвращают пустое значение.
+export async function fetchAdminStats(): Promise<AdminStats | null> {
+  try {
+    const res = await fetch(`${API}/api/admin/stats`);
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    return (await res.json()) as AdminStats;
+  } catch {
+    return null;
+  }
+}
+
+/** Сохранённые чаты (только для авторизованных Google-аккаунтом пользователей). */
+export async function loadChatThread(token: string, subject: string): Promise<ChatMessage[]> {
+  try {
+    const res = await fetch(`${API}/api/chats/${encodeURIComponent(subject)}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = (await res.json()) as { messages: ChatMessage[] };
+    return data.messages;
+  } catch {
+    return [];
+  }
+}
+
+export async function saveChatThread(token: string, subject: string, messages: ChatMessage[]): Promise<void> {
+  try {
+    await fetch(`${API}/api/chats/${encodeURIComponent(subject)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ messages }),
+    });
+  } catch {
+    /* тихо игнорируем — не критично для чата */
   }
 }

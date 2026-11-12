@@ -25,3 +25,13 @@ export interface TutorReply {
     layer: 1 | 2 | 3;
   };
 }
+
+/** Агрегированная статистика для admin panel (из ветки feat/atxamov99; эндпоинт /api/admin/stats в бэкенде master пока не реализован). */
+export interface AdminStats {
+  activeStudents: number;
+  questionsToday: number;
+  blockedToday: number;
+  topSubject?: string;
+  subjectUsage: { id: string; count: number }[];
+  securityLog: { time: string; layer: 1 | 2 | 3; lang: Lang; text: string }[];
+}
