@@ -5,7 +5,8 @@ import { askTutor, loadChatThread, saveChatThread } from "../api.js";
 import { useAchievements } from "../useAchievements.js";
 import { useProfile } from "../useProfile.js";
 import { shareContent } from "../share.js";
-
+
+import { cleanText } from "../lib/cleanText.js";
 interface Msg {
   role: "user" | "assistant";
   content: string;
@@ -170,7 +171,7 @@ export default function Chat({
                   {t("chat.blocked")} · {t("sec.layer")} {m.blocked.layer}
                 </div>
               )}
-              {m.content}
+              {m.role === "assistant" ? cleanText(m.content) : m.content}
               {m.demo && (
                 <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t("chat.demo")}</div>
               )}
