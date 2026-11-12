@@ -1,6 +1,6 @@
 // Минимальный service worker: делает сайт устанавливаемым (PWA) и даёт
 // офлайн-оболочку. Контент — network-first (свежий), с фолбэком на кэш.
-const CACHE = "ai-tutor-v1";
+const CACHE = "ai-tutor-v2";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
